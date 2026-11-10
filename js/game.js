@@ -1022,7 +1022,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) { per
   state = 'menu'; $('loading').classList.add('done'); document.body.classList.add('ready');
   $('btnPlay').querySelector('span').textContent = save.mission ? '▶ CONTINUAR VIAJE' : save.deliveries ? '▶ CONTINUAR' : '▶ JUGAR';
 })();
-window.__game = { step: dt => step(dt), arriveNow: () => arrive(), pickUpNow: () => pickUp(), P, VEH, get M() { return M; }, scene, camera, renderer, get state() { return state; }, keys, enterGame, startMission, missionOffers, play, heightAt, groundAt, save, setTake: () => takePressed = true, TOWNS, world: () => world, chunks: () => chunks, applyTime, enter, openMissions };
+window.__game = { setState: s => state = s, step: dt => step(dt), arriveNow: () => arrive(), pickUpNow: () => pickUp(), P, VEH, get M() { return M; }, scene, camera, renderer, get state() { return state; }, keys, enterGame, startMission, missionOffers, play, heightAt, groundAt, save, setTake: () => takePressed = true, TOWNS, world: () => world, chunks: () => chunks, applyTime, enter, openMissions };
 
 /* ---------- Contador de visitantes ---------- */
 (function () {

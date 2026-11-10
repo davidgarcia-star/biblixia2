@@ -39,8 +39,8 @@ function bananas() {
 const greenM = new THREE.MeshStandardMaterial({ color: 0x8fb03a, roughness: .6 }), yellowM = new THREE.MeshStandardMaterial({ color: 0xf2cf3a, roughness: .55 });
 export function makePlatanero() {
   const v = makeVehicle('camioneta', 0x2e7d4f);
-  const b1 = new THREE.Mesh(bananas(), greenM); b1.position.set(0, 1.05, -1.45); b1.castShadow = true; v.add(b1);
-  const b2 = new THREE.Mesh(bananas(), yellowM); b2.position.set(.1, 1.25, -1.5); b2.scale.set(.8, .8, .7); b2.rotation.y = 1.3; b2.castShadow = true; v.add(b2);
+  const b1 = new THREE.Mesh(bananas(), greenM); b1.position.set(0, 1.3, -1.45); b1.scale.set(1.05, 1.2, 1); b1.castShadow = true; v.add(b1);
+  const b2 = new THREE.Mesh(bananas(), yellowM); b2.position.set(.1, 1.6, -1.5); b2.scale.set(.85, 1, .75); b2.rotation.y = 1.3; b2.castShadow = true; v.add(b2);
   // bocina en el techo
   const horn = new THREE.Mesh(new THREE.ConeGeometry(.22, .5, 14, 1, true), new THREE.MeshStandardMaterial({ color: 0xd8d8d8, metalness: .6, roughness: .3, side: THREE.DoubleSide }));
   horn.rotation.x = -Math.PI / 2; horn.position.set(0, 2.25, .5); v.add(horn);
