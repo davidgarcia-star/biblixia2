@@ -11,6 +11,8 @@ Creado por **Luis David Esteban García** de parte de **MIPROAA** – Ministerio
 - Lago Enriquillo, Laguna de Oviedo, Presa de Tavera y los ríos Yaque del Norte, Yaque del Sur, Yuna, Ozama, Chavón y Masacre.
 - Las islas Saona, Catalina, Beata y Cayo Levantado.
 - Autopistas y carreteras principales: Duarte, Las Américas, 6 de Noviembre, Sánchez, del Nordeste, del Coral, Costa Norte y otras.
+- 🛣️ Avenidas reales de las ciudades, con su letrero verde: en Santo Domingo (27 de Febrero, Kennedy, Churchill, Lincoln, Máximo Gómez, Independencia, Bolívar, Duarte, Tiradentes, Ortega y Gasset, Núñez de Cáceres, Luperón, Venezuela, Sabana Larga, San Vicente de Paúl, España, Jacobo Majluta…), en Santiago, San Cristóbal (Av. Constitución, Padre Borbón, Libertad) y otras capitales. El trazado es aproximado.
+- 📏 Las distancias son las del mapa real: de San Cristóbal a Santo Domingo son unos 20 km; mientras más lejos, más kilómetros. En pantalla se ve cuánto falta («12 km de 20 km»).
 - 🚧 **Peajes** en las autopistas, en ubicación aproximada: hay que detenerse para que suba la barrera.
 - ✈️ Aeropuertos reales: Las Américas, Cibao, Punta Cana, Gregorio Luperón, La Romana, El Catey, María Montez y La Isabela.
 - ⚓ Muelles con lanchas y 🚆 dos líneas de tren con sus estaciones: Tren del Cibao y Tren del Sur y del Este.
@@ -18,6 +20,9 @@ Creado por **Luis David Esteban García** de parte de **MIPROAA** – Ministerio
 
 ## Transportes
 A pie, 🚲 bicicleta, 🏍️ motor, 🚗 carro, 🚙 jeepeta, 🛻 camioneta, 🚌 guagua, 🐎 caballo, 🫏 burro, 🚤 lancha, ✈️ avión, 🚁 helicóptero y 🚆 tren. También hay tráfico en las carreteras, aviones en el cielo y trenes que paran en las estaciones.
+
+## Choques
+El jugador no atraviesa edificios, iglesias, árboles, postes, bombas, peajes ni vehículos, ni a pie ni manejando. Si chocas, el vehículo rebota. El tráfico frena y toca bocina si te le pones delante. En carro, jeepeta, camioneta, guagua, avión, helicóptero y tren el jugador y el personaje van adentro (no se ven por fuera).
 
 ## Combustible
 Los vehículos de motor gastan combustible y en pantalla hay un medidor. Se llena en las bombas ⛽: hay una en cada provincia y otras a lo largo de las autopistas. Los aviones y helicópteros cargan en los aeropuertos y las lanchas en los muelles. Si el tanque se vacía, se puede pedir un galón de emergencia.
@@ -54,6 +59,7 @@ Necesita un servidor web. Con GitHub Pages: *Settings → Pages → rama `main`,
 - `js/towns.js` – pueblos, edificios, bombas, peajes, aeropuertos, estaciones y monumentos
 - `js/vehicles.js`, `js/lujo.js` – transportes
 - `js/human.js`, `js/characters.js` – personas y personajes bíblicos
+- `js/collide.js` – choques con edificios, objetos y vehículos
 - `js/maps.js` – minimapa y mapa completo
 - `js/audio.js`, `js/audio2.js` – música (con ritmo de merengue al jugar) y sonidos
 - `js/verses.js` – versículos LBLA

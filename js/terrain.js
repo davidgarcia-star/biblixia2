@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { removeSolids } from './collide.js';
 import { toXZ, BOUNDS, RD, HAITI, ISLANDS, LAKES, RIVERS, RIDGES, PROVINCES, PROV, ROADS, RAILS, AIRPORTS, KM } from './rd-data.js';
 
 /* =========================================================
@@ -154,7 +155,7 @@ export function buildLines() {
     const pts = densify(resolve(r.path), r.city ? 25 : 40), w = r.main ? 15 : r.city ? 13 : 10, ys = profile(pts, w);
     for (let i = 0; i < pts.length - 1; i++) indexSeg({ ax: pts[i][0], az: pts[i][1], bx: pts[i + 1][0], bz: pts[i + 1][1], w, y0: ys[i], y1: ys[i + 1], kind: 'road', main: !!r.main, line: LINES.roads.length, i });
     const cum = [0]; for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
-    LINES.roads.push({ name: r.name, pts, ys, w, main: !!r.main, cum });
+    LINES.roads.push({ name: r.name, pts, ys, w, main: !!r.main, city: !!r.city, cum });
   }
   for (const rl of RAILS) {
     const base = densify(resolve(rl.path), 40);
@@ -307,7 +308,7 @@ export class Chunks {
   }
   drop(k, c, keep) {
     this.scene.remove(c.mesh); c.mesh.geometry.dispose();
-    if (c.deco) { this.scene.remove(c.deco); c.deco.traverse(o => { if (o.geometry && !o.userData.shared) o.geometry.dispose(); }); }
+    if (c.deco) { removeSolids(c.deco.userData.solids); c.deco.userData.solids = null; this.scene.remove(c.deco); c.deco.traverse(o => { if (o.geometry && !o.userData.shared) o.geometry.dispose(); }); }
     if (!keep) this.map.delete(k);
   }
   pending() { return this.queue.length; }

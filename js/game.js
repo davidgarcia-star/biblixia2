@@ -6,13 +6,14 @@ import { CHARACTERS, createCharacter, nameSprite } from './characters.js';
 import { Sound2 } from './audio2.js';
 import { PROVINCES, PROV, AIRPORTS, PLACES, MISSIONS, BOUNDS, toXZ, KM } from './rd-data.js';
 import { buildMasks, initFlats, buildLines, buildFarMesh, buildWater, Chunks, linesInChunk, riversInChunk, heightAt, groundAt as groundAt0, H0, inHaiti, typeAt, LINES, linePos, nearRoad, CH } from './terrain.js';
-import { buildTown, buildAirport, buildPorts, buildStations, buildTolls, highwayPumps, buildPlace, decorateChunk, TOWNS, PUMPS, TOLL_LIST, facadeMat, NIGHT_MATS, label, DETAIL, padAt, FACADES } from './towns.js';
+import { buildTown, buildAirport, buildPorts, buildStations, buildTolls, highwayPumps, streetSigns, buildPlace, decorateChunk, TOWNS, PUMPS, TOLL_LIST, facadeMat, NIGHT_MATS, label, DETAIL, padAt, FACADES } from './towns.js';
 // suelo = terreno, carretera o superficie construida (plaza, andén, pista, muelle): así los pies no se entierran
 const groundAt = (x, z) => { const g = groundAt0(x, z), p = padAt(x, z); return p > g.y - .02 ? { y: p, road: 'pad', main: false } : g; };
 import { makeVehicle, animateVehicle, KINDS, TRAFFIC_COLORS } from './vehicles.js';
 import { buildBaseMap, drawMap } from './maps.js';
 import { initGente, updateGente, CITY_LOOPS } from './gente.js';
 import { bakeInPlace } from './human.js';
+import { makeBox, resolve as resolveHit } from './collide.js';
 
 /* =========================================================
    BIBLIXIA 2 · Lleva a los personajes de la Biblia por República Dominicana
@@ -100,7 +101,7 @@ async function buildWorld() {
   for (const [i, p] of PROVINCES.entries()) { buildTown(p, scene); if (i % 4 === 3) { loadBar(.45 + .25 * i / PROVINCES.length); await idle(); } }
   loadBar(.72, 'Aeropuertos, puertos y estaciones…'); await idle();
   const airports = AIRPORTS.map(a => buildAirport(a, scene));
-  const ports = buildPorts(scene), stations = buildStations(scene); buildTolls(scene); highwayPumps(scene);
+  const ports = buildPorts(scene), stations = buildStations(scene); buildTolls(scene); highwayPumps(scene); streetSigns(scene);
   loadBar(.82, 'Lugares famosos…'); await idle();
   for (const pl of PLACES) buildPlace(pl, scene);
   buildBaseMap(); initGente(scene, TOWNS);
@@ -237,6 +238,8 @@ function input() {
    ========================================================= */
 const CHAR = Object.fromEntries(CHARACTERS.map(c => [c.id, c]));
 const destOf = id => { const p = PROV[id]; if (p) return { x: p.px ?? p.x, z: p.pz ?? p.z, name: p.name, full: 'provincia ' + p.name, r: 230, prov: true }; const pl = PLACES.find(q => q.id === id); return { x: pl.x, z: pl.z, name: pl.name, full: pl.name, r: 260, place: pl }; };
+// kilómetros del viaje según el mapa real: de la plaza de la provincia al destino (San Cristóbal → Santo Domingo ≈ 20 km)
+const tripKm = (p, d) => Math.hypot((p.px ?? p.x) - d.x, (p.pz ?? p.z) - d.z);
 let M = null; // misión actual: { m, def, pick:{x,z,prov}, dest, phase:'pick'|'ride', time, total, late }
 let waiting = null, passenger = null;
 const PAX = { pos: new THREE.Vector3(), heading: 0, speed: 0 };
@@ -250,7 +253,7 @@ function missionOffers() {
     const d = destOf(m.dest);
     const pick = near.slice(0, 7).find(p => Math.hypot(p.x - d.x, p.z - d.z) > 9000 && !(d.place && d.place.prov === p.id) && p.id !== m.dest) || near.find(p => Math.hypot(p.x - d.x, p.z - d.z) > 9000);
     if (!pick) continue;
-    const dist = Math.hypot(pick.x - d.x, pick.z - d.z);
+    const dist = tripKm(pick, d);
     out.push({ m, def: CHAR[m.who], pick, dest: d, dist, time: Math.round(dist / 24 + 150) });
     if (out.length === 3) break;
   }
@@ -258,7 +261,7 @@ function missionOffers() {
 }
 function startMission(o) {
   clearMission(true);
-  M = { m: o.m, def: o.def, pick: { x: o.pick.px + 14, z: o.pick.pz + 22, prov: o.pick }, dest: o.dest, phase: 'pick', time: o.time, total: o.time, late: false, talk: 0, line: 0 };
+  M = { m: o.m, def: o.def, pick: { x: o.pick.px + 14, z: o.pick.pz + 22, prov: o.pick }, dest: o.dest, phase: 'pick', time: o.time, total: o.time, late: false, talk: 0, line: 0, km: tripKm(o.pick, o.dest) };
   spawnWaiting();
   save.mission = { who: o.m.who, dest: o.m.dest, pick: o.pick.id, time: o.time, phase: 'pick' }; persist();
   toast(`📍 Recoge a ${o.def.name} en ${o.pick.name}`, '#ffd34d');
@@ -268,7 +271,7 @@ function resumeMission() {
   const s = save.mission; if (!s) return;
   const m = MISSIONS.find(q => q.who === s.who && q.dest === s.dest), p = PROV[s.pick]; if (!m || !p || !CHAR[m.who]) { save.mission = null; return; }
   const d = destOf(m.dest), dist = Math.hypot(p.x - d.x, p.z - d.z), total = Math.round(dist / 24 + 150);
-  M = { m, def: CHAR[m.who], pick: { x: p.px + 14, z: p.pz + 22, prov: p }, dest: d, phase: 'pick', time: s.time ?? total, total, late: !!s.late, talk: 0, line: 0 };
+  M = { m, def: CHAR[m.who], pick: { x: p.px + 14, z: p.pz + 22, prov: p }, dest: d, phase: 'pick', time: s.time ?? total, total, late: !!s.late, talk: 0, line: 0, km: tripKm(p, d) };
   if (s.phase === 'ride') { M.phase = 'ride'; boardPassengerNow(); } else spawnWaiting();
   updMissionHUD();
 }
@@ -304,7 +307,7 @@ function boardPassengerNow() {
 function pickUp() {
   sound.talk(); boardPassengerNow();
   const def = M.def, first = def.name.split(' (')[0];
-  openTalk({ kind: def.kind, name: def.name, msg: `¡Shalom! Soy ${first} y ${M.m.why} ¿Me llevas a ${M.dest.full}?`, ref: `Tiempo: ${fmtT(M.time)} · Distancia: ${fmtKm(Math.hypot(M.dest.x - P.pos.x, M.dest.z - P.pos.z))} en línea recta · Tesoro: ${def.emoji || '🎁'} ${def.gift}`, btn: '🚀 ¡Vamos!', onOk: () => { closeTalk(); sound.say(`¡Gracias! Vamos a ${M.dest.name}.`, { male: def.gender !== 'f' }); } });
+  openTalk({ kind: def.kind, name: def.name, msg: `¡Shalom! Soy ${first} y ${M.m.why} ¿Me llevas a ${M.dest.full}?`, ref: `Tiempo: ${fmtT(M.time)} · Viaje: ${fmtKm(M.km)} hasta ${M.dest.name} · Tesoro: ${def.emoji || '🎁'} ${def.gift}`, btn: '🚀 ¡Vamos!', onOk: () => { closeTalk(); sound.say(`¡Gracias! Vamos a ${M.dest.name}.`, { male: def.gender !== 'f' }); } });
   sound.say(`¡Hola! Soy ${first}. ¿Me llevas a ${M.dest.name}?`, { male: def.gender !== 'f' });
 }
 function arrive() {
@@ -373,6 +376,39 @@ function blocked(x, z, air) {
   if (inHaiti(x, z)) return 'haiti';
   return null;
 }
+/* ---------- choques con vehículos, edificios y objetos ---------- */
+const DIM = k => (KINDS[k] && KINDS[k].dim) || [1, 2, 0];
+const vehBox = (x, z, yaw, kind) => { const [hw, hl, off] = DIM(kind); return makeBox(x + Math.sin(yaw) * off, z + Math.cos(yaw) * off, hw, hl, yaw); };
+const DYN = [];
+// vehículos cercanos (estacionados, tráfico y vagones del tren) como cajas sólidas
+function dynSolids(x, z, skip) {
+  DYN.length = 0;
+  for (const v of VEH) {
+    if (v === skip || v === P.veh) continue;
+    if (v.kind === 'tren') { if (v.obj && v.obj.visible) for (const c of v.obj.userData.cars) if (Math.abs(c.position.x - x) < 40 && Math.abs(c.position.z - z) < 40) DYN.push(makeBox(c.position.x, c.position.z, 1.7, v.obj.userData.carLen / 2 - .3, c.rotation.y)); continue; }
+    if (Math.abs(v.x - x) > 30 || Math.abs(v.z - z) > 30) continue;
+    if (v.K.air && !v.onGround) continue;
+    DYN.push(vehBox(v.x, v.z, v.yaw, v.kind));
+  }
+  for (const c of TRAFFIC) { const o = c.obj.position; if (Math.abs(o.x - x) < 30 && Math.abs(o.z - z) < 30) DYN.push(vehBox(o.x, o.z, c.obj.rotation.y, c.kind)); }
+  return DYN;
+}
+// círculos a lo largo del vehículo: si alguno choca devuelve el empuje para separarlo
+function vehHit(v, x, z, yaw, dyn) {
+  const [hw, hl, off] = DIM(v.kind), n = Math.max(1, Math.round((hl - hw) / hw) + 1), sy = Math.sin(yaw), cy = Math.cos(yaw);
+  let ex = 0, ez = 0, hit = false;
+  for (let i = 0; i < n; i++) {
+    const lz = off + (n === 1 ? 0 : -hl + hw + i * (2 * (hl - hw)) / (n - 1)), cx = x + sy * lz, cz = z + cy * lz;
+    const r = resolveHit(cx, cz, hw * .95, v.y + .4, dyn);
+    if (r.hit) { hit = true; ex += r.x - cx; ez += r.z - cz; }
+  }
+  return hit ? [ex / n, ez / n] : null;
+}
+let crashT = 0;
+function crash(v) {
+  if (Math.abs(v.speed) > 5 && clockT - crashT > 1.5) { crashT = clockT; sound.hurt(); toast(v.K.animal ? '🐎 ¡Cuidado! No se puede pasar por ahí' : '💥 ¡Choque! Maneja con cuidado', '#ffb36b'); }
+  v.speed *= -.25;
+}
 let blockMsgT = 0;
 function blockMsg(b) { if (performance.now() - blockMsgT < 2500) return; blockMsgT = performance.now(); toast(b === 'haiti' ? '🛂 Frontera con Haití: no se puede cruzar' : '🌊 Hasta aquí llega el mapa', '#ffb36b'); sound.hurt(); }
 function walk(dt) {
@@ -381,10 +417,12 @@ function walk(dt) {
   P.speed = lerp(P.speed, target, Math.min(1, dt * 8));
   if (target > 0) { const a = cam.yaw - Math.atan2(I.fx, I.fz); let d = a - P.heading; d = Math.atan2(Math.sin(d), Math.cos(d)); P.heading += d * Math.min(1, dt * 10); }
   const nx = P.pos.x + Math.sin(P.heading) * P.speed * dt, nz = P.pos.z + Math.cos(P.heading) * P.speed * dt;
-  const b = blocked(nx, nz), g = groundAt(nx, nz);
+  // no atraviesa edificios, árboles, postes ni vehículos: se desliza por el borde
+  const hit = resolveHit(nx, nz, .42, P.pos.y, dynSolids(nx, nz)), rx = hit.x, rz = hit.z;
+  const b = blocked(rx, rz), g = groundAt(rx, rz);
   if (b) { blockMsg(b); P.speed = 0; }
   else if (g.y < -.9 && !g.road) { if (performance.now() - blockMsgT > 2500) { blockMsgT = performance.now(); toast('🌊 El agua es profunda: usa una lancha ⚓', '#9fd8ff'); } P.speed = 0; }
-  else { P.pos.x = nx; P.pos.z = nz; }
+  else { P.pos.x = rx; P.pos.z = rz; }
   if (jumpPressed && P.onGround) { P.vy = 6; P.onGround = false; sound.jump(); }
   jumpPressed = false;
   P.vy -= 20 * dt; P.pos.y += P.vy * dt;
@@ -419,7 +457,13 @@ function drive(dt) {
   const steer = -I.fx * K.turn * clamp(Math.abs(v.speed) / 6, 0, 1) * (1 - clamp(Math.abs(v.speed) / (K.max * 1.6), 0, .5));
   v.yaw += steer * Math.sign(v.speed || 1) * dt;
   v.roll = lerp(v.roll, (v.kind === 'moto' || v.kind === 'bici') ? -steer * .35 : K.water ? -steer * .12 : 0, dt * 5);
-  const nx = v.x + Math.sin(v.yaw) * v.speed * dt, nz = v.z + Math.cos(v.yaw) * v.speed * dt;
+  let nx = v.x + Math.sin(v.yaw) * v.speed * dt, nz = v.z + Math.cos(v.yaw) * v.speed * dt;
+  // choques: no se pasa por encima de edificios, árboles, postes ni otros vehículos
+  { const dyn = dynSolids(nx, nz, v);
+    if (vehHit(v, nx, nz, v.yaw, dyn)) {
+      crash(v); nx = v.x; nz = v.z;
+      const sep = vehHit(v, v.x, v.z, v.yaw, dyn); if (sep) { nx += clamp(sep[0], -1.5, 1.5); nz += clamp(sep[1], -1.5, 1.5); }
+    } }
   const b = blocked(nx, nz);
   if (b) { blockMsg(b); v.speed = 0; }
   else if (K.water) {
@@ -478,7 +522,9 @@ function driveAir(v, dt, I, hasFuel) {
     } else if (v.y > floor + .5) v.onGround = false;
     if (v.y > 3000) v.y = 3000;
   }
-  const nx = v.x + Math.sin(v.yaw) * v.speed * dt, nz = v.z + Math.cos(v.yaw) * v.speed * dt, b = blocked(nx, nz, true);
+  let nx = v.x + Math.sin(v.yaw) * v.speed * dt, nz = v.z + Math.cos(v.yaw) * v.speed * dt;
+  if (v.y - floor < 8) { const dyn = dynSolids(nx, nz, v); if (vehHit(v, nx, nz, v.yaw, dyn)) { crash(v); nx = v.x; nz = v.z; } }
+  const b = blocked(nx, nz, true);
   if (b) { blockMsg(b); v.yaw += Math.PI * .5 * dt; v.speed *= .98; } else { v.x = nx; v.z = nz; }
   if (hasFuel) useFuel(v, (Math.abs(v.speed) + (v.kind === 'heli' && !v.onGround ? 30 : 3)) * dt);
   sound.engine(v.kind, hasFuel ? .7 + v.speed / K.max * .3 : 0, v.kind === 'heli' ? .4 + v.speed / K.max * .5 : v.speed / K.max);
@@ -554,17 +600,19 @@ function updateTraffic(dt) {
   const bigNear = TOWNS.find(t => t.p.big && Math.hypot(P.pos.x - t.p.px, P.pos.z - t.p.pz) < t.R * 1.3);
   const want = (dSD < 4500 ? 30 : bigNear ? 18 : 10) * (isTouch ? .5 : 1);
   for (const c of TRAFFIC) {
-    c.s += c.dir * c.spd * dt; const L = c.line.cum[c.line.cum.length - 1];
+    // si el jugador (o su vehículo) está delante, el carro frena y toca bocina: no lo atraviesa
+    { const o = c.obj.position, fy = c.obj.rotation.y, fx = Math.sin(fy), fz = Math.cos(fy), tx = (P.veh ? P.veh.x : P.pos.x) - o.x, tz = (P.veh ? P.veh.z : P.pos.z) - o.z;
+      const ahead = tx * fx + tz * fz, side = Math.abs(tx * fz - tz * fx), [, hl] = DIM(c.kind), w2 = P.veh ? DIM(P.veh.kind)[0] + 1.6 : 1.8;
+      const stop = ahead > 0 && ahead < hl + (P.veh ? DIM(P.veh.kind)[1] : 0) + 7 && side < w2;
+      c.cur = lerp(c.cur ?? c.spd, stop ? 0 : c.spd, Math.min(1, dt * (stop ? 6 : 1.2)));
+      if (stop && (!c.honkT || clockT - c.honkT > 4) && Math.hypot(tx, tz) < 40) { c.honkT = clockT; sound.honk(1, 0); } }
+    c.s += c.dir * c.cur * dt; const L = c.line.cum[c.line.cum.length - 1];
     if (c.line.loop) c.s = ((c.s % L) + L) % L;
     else if (c.s < 0 || c.s > L) { c.dir *= -1; c.s = clamp(c.s, 0, L); }
     const p = linePos(c.line, c.s), side = c.line.loop ? -1 : c.dir > 0 ? 1 : -1, off = (c.line.loop ? 2.2 * c.dir : c.line.w * .22) * side;
     c.obj.position.set(p.x + Math.cos(p.yaw) * off, p.y + .2, p.z - Math.sin(p.yaw) * off);
     c.obj.rotation.set(0, c.dir > 0 ? p.yaw : p.yaw + Math.PI, 0);
-    animateVehicle(c.obj, dt, c.spd, clockT);
-    // choque con el jugador
-    const pv = P.veh;
-    if (pv && pv.K.ground && Math.hypot(c.obj.position.x - pv.x, c.obj.position.z - pv.z) < 3.4 && (!c.hitT || clockT - c.hitT > 2)) { c.hitT = clockT; pv.speed *= -.3; sound.hurt(); sound.honk(1, 0); toast('💥 ¡Choque! Maneja con cuidado', '#ffb36b'); }
-    if (!pv && Math.hypot(c.obj.position.x - P.pos.x, c.obj.position.z - P.pos.z) < 2.6 && (!c.hitT || clockT - c.hitT > 2)) { c.hitT = clockT; sound.honk(1, 0); P.pos.x += (P.pos.x - c.obj.position.x) * .8; P.pos.z += (P.pos.z - c.obj.position.z) * .8; toast('📯 ¡Cuidado con los carros!', '#ffb36b'); }
+    animateVehicle(c.obj, dt, c.cur, clockT);
   }
   if ((updateTraffic.t = (updateTraffic.t || 0) - dt) > 0) return; updateTraffic.t = 1;
   for (let i = TRAFFIC.length - 1; i >= 0; i--) { const c = TRAFFIC[i]; if (c.obj.position.distanceTo(P.pos) > 2600) { scene.remove(c.obj); TRAFFIC.splice(i, 1); } }
@@ -580,7 +628,7 @@ function updateTraffic(dt) {
     if (k === 'moto' || k === 'guagua') bakeInPlace(obj, obj.userData.wheels);
     obj.traverse(o => { if (o.isMesh) o.castShadow = false; });
     scene.add(obj);
-    TRAFFIC.push({ obj, line, s, dir: Math.random() < .5 ? 1 : -1, spd: line.loop ? 7 + Math.random() * 5 : KINDS[k].max * (.45 + Math.random() * .3) });
+    TRAFFIC.push({ obj, kind: k, line, s, dir: Math.random() < .5 ? 1 : -1, spd: line.loop ? 7 + Math.random() * 5 : KINDS[k].max * (.45 + Math.random() * .3) });
   }
 }
 function updateTrains(dt) {
@@ -651,7 +699,7 @@ function updMissionHUD() {
   if (!M) { c.classList.add('idle'); $('mWho').textContent = 'Sin misión'; $('mTxt').innerHTML = 'Pulsa <b>📋 Misiones</b> para elegir un viaje'; $('mTime').textContent = '—'; $('mBar').style.width = '0%'; return; }
   c.classList.remove('idle');
   $('mWho').textContent = (M.def.emoji || '🙏') + ' ' + M.def.name.split(' (')[0];
-  $('mTxt').innerHTML = M.phase === 'pick' ? `Recógelo en <b>${M.pick.prov.name}</b>` : `Llévalo a <b>${M.dest.name}</b>`;
+  $('mTxt').innerHTML = M.phase === 'pick' ? `Recógelo en <b>${M.pick.prov.name}</b>` : `Llévalo a <b>${M.dest.name}</b> · 📏 ${fmtKm(M.km)}`;
 }
 let provNow = null, provT = 0;
 function updateHUD(dt) {
@@ -676,7 +724,7 @@ function updateHUD(dt) {
   if (tgt) {
     const px = v ? v.x : P.pos.x, pz = v ? v.z : P.pos.z, d = Math.hypot(tgt.x - px, tgt.z - pz);
     const ang = Math.atan2(tgt.x - px, tgt.z - pz) - (Math.atan2(camLook.x - camPos.x, camLook.z - camPos.z));
-    $('hArrow').style.transform = `rotate(${-ang * 180 / Math.PI}deg)`; $('hDist').textContent = fmtKm(d);
+    $('hArrow').style.transform = `rotate(${-ang * 180 / Math.PI}deg)`; $('hDist').textContent = M.phase === 'ride' ? `${fmtKm(d)} de ${fmtKm(M.km)}` : fmtKm(d);
   }
   // provincia actual (la capital más cercana)
   if ((provT -= dt) <= 0) {
@@ -916,7 +964,7 @@ function offersFor(p) {
   for (const m of MISSIONS) {
     const def = CHAR[m.who]; if (!def) continue;
     const d = destOf(m.dest); if (m.dest === p.id || (d.place && d.place.prov === p.id)) continue;
-    const dist = Math.hypot(p.px - d.x, p.pz - d.z); if (dist < 6000) continue;
+    const dist = tripKm(p, d); if (dist < 6000) continue;
     out.push({ m, def, pick: p, dest: d, dist, time: Math.round(dist / 24 + 150) });
   }
   return out.sort((a, b) => (save.done[a.def.id] !== undefined) - (save.done[b.def.id] !== undefined) || a.dist - b.dist);

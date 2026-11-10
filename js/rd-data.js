@@ -140,6 +140,43 @@ export const ROADS = [
   { name: 'Avenida Abraham Lincoln', city: true, path: [[-69.935, 18.455], [-69.934, 18.478], [-69.932, 18.497]] },
   { name: 'Avenida Charles de Gaulle', city: true, path: [[-69.835, 18.470], [-69.832, 18.515], [-69.828, 18.560]] },
   { name: 'Avenida Estrella Sadhalá (Santiago)', city: true, path: [[-70.705, 19.435], [-70.698, 19.455], [-70.690, 19.480]] },
+  // --- más avenidas reales del Gran Santo Domingo (trazado aproximado) ---
+  { name: 'Avenida Independencia', city: true, path: [[-69.893, 18.471], [-69.906, 18.468], [-69.930, 18.463], [-69.958, 18.457], [-69.990, 18.450]] },
+  { name: 'Avenida Bolívar', city: true, path: [[-69.896, 18.474], [-69.915, 18.471], [-69.940, 18.467]] },
+  { name: 'Avenida Duarte', city: true, path: [[-69.893, 18.476], [-69.896, 18.490], [-69.900, 18.512]] },
+  { name: 'Avenida Tiradentes', city: true, path: [[-69.925, 18.468], [-69.926, 18.483], [-69.926, 18.500]] },
+  { name: 'Avenida Ortega y Gasset', city: true, path: [[-69.917, 18.469], [-69.917, 18.485], [-69.916, 18.502]] },
+  { name: 'Avenida Núñez de Cáceres', city: true, path: [[-69.958, 18.458], [-69.957, 18.478], [-69.955, 18.500]] },
+  { name: 'Avenida Gregorio Luperón', city: true, path: [[-69.975, 18.442], [-69.973, 18.468], [-69.970, 18.498]] },
+  { name: 'Avenida Rómulo Betancourt', city: true, path: [[-69.995, 18.447], [-69.970, 18.452], [-69.948, 18.456]] },
+  { name: 'Avenida Isabel Aguiar (Herrera)', city: true, path: [[-69.985, 18.462], [-69.988, 18.478], [-69.990, 18.494]] },
+  { name: 'Avenida Jacobo Majluta', city: true, path: [[-69.975, 18.553], [-69.935, 18.561], [-69.895, 18.565], [-69.850, 18.560]] },
+  { name: 'Avenida Hermanas Mirabal', city: true, path: [[-69.905, 18.515], [-69.910, 18.540], [-69.915, 18.565]] },
+  { name: 'Avenida España (Santo Domingo Este)', city: true, path: [[-69.880, 18.472], [-69.850, 18.470], [-69.820, 18.466], [-69.790, 18.462]] },
+  { name: 'Avenida Venezuela', city: true, path: [[-69.853, 18.477], [-69.853, 18.490], [-69.854, 18.502]] },
+  { name: 'Avenida Sabana Larga', city: true, path: [[-69.863, 18.476], [-69.864, 18.495], [-69.866, 18.512]] },
+  { name: 'Avenida San Vicente de Paúl', city: true, path: [[-69.845, 18.479], [-69.844, 18.500], [-69.843, 18.522]] },
+  { name: 'Avenida Ecológica', city: true, path: [[-69.835, 18.470], [-69.805, 18.488], [-69.780, 18.505]] },
+  // --- Santiago de los Caballeros ---
+  { name: 'Avenida 27 de Febrero (Santiago)', city: true, path: [[-70.725, 19.462], [-70.700, 19.458], [-70.675, 19.456]] },
+  { name: 'Avenida Juan Pablo Duarte (Santiago)', city: true, path: [[-70.715, 19.452], [-70.693, 19.448], [-70.668, 19.446]] },
+  { name: 'Avenida Las Carreras (Santiago)', city: true, path: [[-70.703, 19.458], [-70.697, 19.450], [-70.692, 19.442]] },
+  { name: 'Avenida Circunvalación (Santiago)', city: true, path: [[-70.735, 19.470], [-70.712, 19.490], [-70.680, 19.492], [-70.655, 19.475], [-70.650, 19.450]] },
+  { name: 'Avenida Bartolomé Colón (Santiago)', city: true, path: [[-70.710, 19.468], [-70.690, 19.466], [-70.672, 19.468]] },
+  // --- San Cristóbal ---
+  { name: 'Avenida Constitución (San Cristóbal)', city: true, path: [[-70.108, 18.398], [-70.106, 18.417], [-70.103, 18.437]] },
+  { name: 'Calle Padre Borbón (San Cristóbal)', city: true, path: [[-70.124, 18.414], [-70.106, 18.417], [-70.090, 18.420]] },
+  { name: 'Avenida Libertad (San Cristóbal)', city: true, path: [[-70.118, 18.405], [-70.100, 18.408], [-70.085, 18.412]] },
+  // --- otras ciudades ---
+  { name: 'Avenida Pedro A. Rivera (La Vega)', city: true, path: [[-70.545, 19.212], [-70.530, 19.222], [-70.512, 19.236]] },
+  { name: 'Avenida Independencia (San Pedro de Macorís)', city: true, path: [[-69.330, 18.452], [-69.309, 18.454], [-69.290, 18.458]] },
+  { name: 'Avenida Libertad (La Romana)', city: true, path: [[-68.973, 18.410], [-68.973, 18.427], [-68.972, 18.445]] },
+  { name: 'Malecón de Puerto Plata (Av. Luis Ginebra)', city: true, path: [[-70.705, 19.800], [-70.688, 19.797], [-70.665, 19.790], [-70.645, 19.784]] },
+  { name: 'Avenida Laguna Llana (Higüey)', city: true, path: [[-68.725, 18.605], [-68.708, 18.615], [-68.690, 18.625]] },
+  { name: 'Avenida Antonio Guzmán (San Francisco de Macorís)', city: true, path: [[-70.270, 19.295], [-70.253, 19.301], [-70.235, 19.310]] },
+  { name: 'Avenida Duarte (Baní)', city: true, path: [[-70.345, 18.276], [-70.332, 18.280], [-70.318, 18.284]] },
+  { name: 'Avenida Independencia (San Juan)', city: true, path: [[-71.245, 18.800], [-71.229, 18.806], [-71.212, 18.812]] },
+  { name: 'Malecón de Barahona (Av. Enriquillo)', city: true, path: [[-71.098, 18.198], [-71.092, 18.210], [-71.085, 18.222]] },
 ];
 
 /* ---------- Tren BIBLIXIA (dos líneas) ---------- */

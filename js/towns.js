@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { PROVINCES, PROV, AIRPORTS, PORTS, PLACES, TOLLS, toXZ } from './rd-data.js';
 import { heightAt, H0, Hfull, nearRoad, LINES, linePos, CH, fbm, rand2, typeAt, sdAt } from './terrain.js';
+import { solidBox, solidCircle, solidLocal } from './collide.js';
 
 /* =========================================================
    PUEBLOS, LUGARES FAMOSOS, AEROPUERTOS, ESTACIONES, BOMBAS Y PEAJES
@@ -151,7 +152,8 @@ export function buildTown(p, scene) {
   add(g, new THREE.CylinderGeometry(6, 6.5, 1.2, 24), MT.stone, 0, fy + .6, 0);
   add(g, new THREE.CylinderGeometry(5.4, 5.4, .3, 24), MT.water, 0, fy + 1.2, 0);
   add(g, box(1.6, 6, 1.6), MT.stone, 0, fy, 0); add(g, new THREE.SphereGeometry(1, 12, 10), MT.gold, 0, fy + 6.8, 0);
-  for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; add(g, box(.2, 5, .2), MT.dark, Math.cos(a) * 33, fy, Math.sin(a) * 33); add(g, new THREE.SphereGeometry(.45, 8, 6), MT.lamp, Math.cos(a) * 33, fy + 5.2, Math.sin(a) * 33); }
+  solidCircle(cx, cz, 6.6, fy + 1.3);
+  for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; solidCircle(cx + Math.cos(a) * 33, cz + Math.sin(a) * 33, .3); add(g, box(.2, 5, .2), MT.dark, Math.cos(a) * 33, fy, Math.sin(a) * 33); add(g, new THREE.SphereGeometry(.45, 8, 6), MT.lamp, Math.cos(a) * 33, fy + 5.2, Math.sin(a) * 33); }
   // iglesia frente a la plaza (norte)
   const ch = new THREE.Group(); ch.position.set(0, fy, -62); g.add(ch);
   const S = 1 + big * .25;
@@ -161,9 +163,10 @@ export function buildTown(p, scene) {
   add(ch, new THREE.ConeGeometry(5.6 * S, 9 * S, 4), std(0x8a3a2a), 0, 34.5 * S, 10 * S, Math.PI / 4);
   add(ch, box(.8, 6, .8), MT.gold, 0, 39 * S, 10 * S); add(ch, box(3.6, .8, .8), MT.gold, 0, 43 * S, 10 * S);
   add(ch, box(5 * S, 8 * S, .5), MT.wood, 0, 0, 14.1 * S);
+  solidBox(cx, cz - 62 - 8 * S, 11 * S, 18 * S, 0, fy + 14 * S); solidBox(cx, cz - 62 + 10 * S, 4 * S, 4 * S, 0, fy + 30 * S);
   // letrero grande con el nombre de la provincia
   const sg = panel(p.name.toUpperCase(), 'PROVINCIA · ' + p.cap, 26, 6.5); sg.position.set(0, fy + 9, 44); g.add(sg);
-  for (const s of [-1, 1]) add(g, box(.6, 12, .6), MT.metal, s * 12.5, fy, 44);
+  for (const s of [-1, 1]) { add(g, box(.6, 12, .6), MT.metal, s * 12.5, fy, 44); solidCircle(cx + s * 12.5, cz + 44, .4); }
   const lab = label(p.name, 'Provincia', { scale: 2.2 + big * .6 }); lab.position.set(cx, fy + 70 + big * 25, cz); scene.add(lab); town.label = lab;
   // calles con aceras (textura en cuadrícula de 34 u: los edificios van en el centro de cada cuadra)
   const offC = Math.hypot(cx - p.x, cz - p.z), core = Math.max(150, Math.min(R * .78 - offC, 260 + big * 260));
@@ -193,6 +196,7 @@ export function buildTown(p, scene) {
     let kind = 'h';
     if (rnd() < cen * .9) { kind = 'a'; h = 10 + rnd() * 14; }
     if (big >= 1 && rnd() < cen * cen * (big >= 2 ? .7 : .25)) { kind = 't'; h = 24 + rnd() * (big === 3 ? 80 : big === 2 ? 50 : 22); w = 16 + rnd() * 8; d = 16 + rnd() * 8; }
+    solidBox(wx, wz, w / 2, d / 2, 0, gy + h);
     const im = kind === 'h' ? houses : kind === 'a' ? apts : towers, i = cnt[kind]++;
     dummy.position.set(x, gy - .5, z); dummy.rotation.set(0, 0, 0); dummy.scale.set(w, h + .5, d); dummy.updateMatrix(); im.setMatrixAt(i, dummy.matrix);
     im.setColorAt(i, col.setHex(kind === 't' ? [0xbcd8f0, 0x9fc4e0, 0xd8e6f2, 0x8fb8d8][i % 4] : kind === 'a' ? [0xf2efe8, 0xe8dcc8, 0xd8e4ec, 0xf6e6c8, 0xe0e0dc][i % 5] : PASTEL[Math.floor(rnd() * PASTEL.length)]));
@@ -202,7 +206,7 @@ export function buildTown(p, scene) {
   houses.count = cnt.h; apts.count = cnt.a; towers.count = cnt.t; flat.count = cnt.f; zinc.count = cnt.z;
   for (const im of [houses, apts, towers, flat, zinc]) { im.castShadow = true; im.receiveShadow = true; im.computeBoundingSphere(); if (im.count) g.add(im); }
   // palmas y árboles en la plaza
-  const pt = new THREE.InstancedMesh(TREE.palm, TREE.mat, 16); for (let i = 0; i < 16; i++) { const a2 = i / 16 * Math.PI * 2; dummy.position.set(Math.cos(a2) * 26, fy + .3, Math.sin(a2) * 26); dummy.rotation.set(0, a2, 0); dummy.scale.setScalar(.8 + (i % 3) * .15); dummy.updateMatrix(); pt.setMatrixAt(i, dummy.matrix); } pt.castShadow = true; pt.userData.shared = true; g.add(pt);
+  const pt = new THREE.InstancedMesh(TREE.palm, TREE.mat, 16); for (let i = 0; i < 16; i++) { const a2 = i / 16 * Math.PI * 2; dummy.position.set(Math.cos(a2) * 26, fy + .3, Math.sin(a2) * 26); solidCircle(cx + Math.cos(a2) * 26, cz + Math.sin(a2) * 26, .4); dummy.rotation.set(0, a2, 0); dummy.scale.setScalar(.8 + (i % 3) * .15); dummy.updateMatrix(); pt.setMatrixAt(i, dummy.matrix); } pt.castShadow = true; pt.userData.shared = true; g.add(pt);
   // estación de transporte (parqueo) al este de la plaza
   town.spots.parking = [cx + 52, cz + 6];
   add(g, box(60, .25, 34), MT.dark, 52, fy - .1, 6); pad(cx + 52, cz + 6, 30, 17, 0, fy + .16);
@@ -216,10 +220,10 @@ export function buildTown(p, scene) {
 
 /* ---------- Bomba de combustible ---------- */
 export const PUMPS = [];
-export function gasStation(cx, cz, rr, scene, exact) {
+export function gasStation(cx, cz, rr, scene, exact, eyaw = 0) {
   // busca un punto junto a una carretera
   let best = null;
-  if (exact) best = { x: cx, z: cz };
+  if (exact) best = { x: cx, z: cz, yaw: eyaw };
   else for (let k = 0; k < 24 && !best; k++) { const a = k / 24 * Math.PI * 2, x = cx + Math.cos(a) * rr, z = cz + Math.sin(a) * rr, r = nearRoad(x, z, 400); if (r) { const s = r.s, t = r.t, px = s.ax + (s.bx - s.ax) * t, pz = s.az + (s.bz - s.az) * t, dx = s.bx - s.ax, dz = s.bz - s.az, l = Math.hypot(dx, dz) || 1; best = { x: px - dz / l * (s.w / 2 + 16), z: pz + dx / l * (s.w / 2 + 16), yaw: Math.atan2(dx, dz) }; } }
   if (!best) return null;
   const g = new THREE.Group(), y = heightAt(best.x, best.z); g.position.set(best.x, y, best.z); g.rotation.y = best.yaw || 0; scene.add(g);
@@ -232,6 +236,10 @@ export function gasStation(cx, cz, rr, scene, exact) {
   const s = panel('⛽ BOMBA', 'COMBUSTIBLE', 7, 1.8, '#1f4fa8'); s.position.set(0, 6.6, 8.3); g.add(s);
   const pole = add(g, box(.5, 10, .5), MT.metal, 13, 0, 9); const s2 = panel('⛽', '', 3, 3, '#c8202a'); s2.position.set(13, 11, 9); g.add(s2);
   pad(best.x, best.z, 13, 10, best.yaw || 0, y + .25);
+  { const L = (lx, lz, hw, hd, top) => solidLocal(best.x, best.z, best.yaw || 0, lx, lz, hw, hd, y + top);
+    for (const [x, z] of [[-8, -5], [8, -5], [-8, 5], [8, 5]]) L(x, z, .45, .45, 6);
+    for (const x of [-4, 4]) L(x, 0, .65, .45, 1.8);
+    L(0, -12, 5, 3, 4); L(13, 9, .35, .35, 10); }
   bakeGroup(g, 3500);
   const pump = { x: best.x, z: best.z, g };
   PUMPS.push(pump);
@@ -246,7 +254,28 @@ export function highwayPumps(scene) {
       const p = linePos(r, s); if (PUMPS.some(q => Math.hypot(q.x - p.x, q.z - p.z) < 2500)) continue;
       if (PROVINCES.some(q => Math.hypot(q.x - p.x, q.z - p.z) < q.R)) continue;
       const nx = -Math.cos(p.yaw), nz = Math.sin(p.yaw);
-      gasStation(p.x + nx * (r.w / 2 + 16), p.z + nz * (r.w / 2 + 16), 0, scene, true).g.rotation.y = p.yaw;
+      gasStation(p.x + nx * (r.w / 2 + 16), p.z + nz * (r.w / 2 + 16), 0, scene, true, p.yaw).g.rotation.y = p.yaw;
+    }
+  }
+}
+
+/* ---------- Letreros verdes con el nombre de las avenidas (como en las calles reales) ---------- */
+export function streetSigns(scene) {
+  for (const r of LINES.roads) {
+    if (!r.city) continue;
+    const name = r.name.replace(/\s*\(.*\)$/, ''), sub = (r.name.match(/\(([^)]*)\)/) || [])[1] || '';
+    const proto = panel(name, sub, 9, 2.2, '#0d6b3a');
+    const L = r.cum[r.cum.length - 1];
+    for (let s = 120, k = 0; s < L - 60; s += 650, k++) {
+      const p = linePos(r, s), side = k % 2 ? 1 : -1, nx = Math.cos(p.yaw) * side, nz = -Math.sin(p.yaw) * side, off = r.w / 2 + 3;
+      const x = p.x + nx * off, z = p.z + nz * off, y = heightAt(x, z);
+      if (y < .5) continue;
+      const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = p.yaw; scene.add(g);
+      add(g, box(.3, 5.4, .3), MT.metal, 0, 0, 0);
+      const sg = proto.clone(); sg.position.set(-side * 4.3, 5.2, 0); g.add(sg);
+      add(g, box(9, .2, .2), MT.metal, -side * 4.3, 6.4, 0);
+      solidCircle(x, z, .3);
+      bakeGroup(g, 1800);
     }
   }
 }
@@ -261,7 +290,7 @@ export function buildTolls(scene) {
     const W = s.w + 14;
     add(g, box(W, 1.2, 10), MT.white, 0, 6.5, 0);
     add(g, box(W + .2, .4, 10.2), MT.red, 0, 7.4, 0);
-    for (const x2 of [-W / 2, -W / 4, 0, W / 4, W / 2]) { add(g, box(1.8, 6.5, 3), MT.cream, x2, 0, 0); add(g, box(1.85, 1.6, 3.05), MT.glass, x2, 2.6, 0); }
+    for (const x2 of [-W / 2, -W / 4, 0, W / 4, W / 2]) { solidLocal(px, pz, yaw, x2, 0, .9, 1.5, y + 6.5); add(g, box(1.8, 6.5, 3), MT.cream, x2, 0, 0); add(g, box(1.85, 1.6, 3.05), MT.glass, x2, 2.6, 0); }
     const bars = []; for (const x2 of [-W / 2 + 1, -W / 4 + 1, 1, W / 4 + 1]) { const b = new THREE.Mesh(new THREE.BoxGeometry(W / 4 - 2, .2, .2).translate((W / 4 - 2) / 2, 0, 0), new THREE.MeshStandardMaterial({ color: 0xf2f2f2, emissive: 0x220000 })); b.position.set(x2, 1.1, 2); b.userData.keep = true; g.add(b); bars.push(b); }
     const sg = panel('PEAJE', t.name.replace('Peaje ', '').replace(/^de la |^de /, ''), 14, 3.5, '#f5c518', '#111'); sg.position.set(0, 9.8, 5.2); g.add(sg);
     const sg2 = sg.clone(); sg2.position.z = -5.2; sg2.rotation.y = Math.PI; g.add(sg2);
@@ -278,6 +307,7 @@ export function buildAirport(a, scene) {
   const rw = new THREE.Mesh(new THREE.PlaneGeometry(45, 1700), new THREE.MeshStandardMaterial({ map: tex, roughness: .9, polygonOffset: true, polygonOffsetFactor: -2 })); rw.rotation.x = -Math.PI / 2; rw.position.y = .25; rw.receiveShadow = true; g.add(rw);
   const tw = new THREE.Mesh(new THREE.PlaneGeometry(25, 900), new THREE.MeshStandardMaterial({ color: 0x3a3c40, roughness: .9, polygonOffset: true, polygonOffsetFactor: -2 })); tw.rotation.x = -Math.PI / 2; tw.position.set(70, .22, 0); g.add(tw);
   const ap = new THREE.Mesh(new THREE.PlaneGeometry(160, 260), tw.material); ap.rotation.x = -Math.PI / 2; ap.position.set(160, .2, 0); g.add(ap);
+  solidLocal(a.x, a.z, yaw, 260, 0, 20, 100, y + 14); solidLocal(a.x, a.z, yaw, 230, 130, 3.5, 3.5, y + 40);
   add(g, box(40, 14, 200), MT.white, 260, 0, 0); add(g, box(40.5, 8, 196), MT.glass, 260, 3, 0);
   add(g, box(46, 1.5, 206), MT.blue, 260, 14, 0);
   add(g, new THREE.CylinderGeometry(3, 4, 34, 12).translate(0, 17, 0), MT.white, 230, 0, 130);
@@ -302,7 +332,7 @@ export function buildStations(scene) {
     const p = linePos(line, st.s), g = new THREE.Group(); g.position.set(p.x, p.y, p.z); g.rotation.y = p.yaw; scene.add(g);
     const nx = 1;
     add(g, box(8, 1.1, 90), MT.concrete, 7.5 * nx, -.5, 0);
-    for (const z of [-36, -12, 12, 36]) add(g, box(.5, 5, .5), MT.metal, 9 * nx, .6, z);
+    for (const z of [-36, -12, 12, 36]) { add(g, box(.5, 5, .5), MT.metal, 9 * nx, .6, z); solidLocal(p.x, p.z, p.yaw, 9, z, .3, .3, p.y + 6); }
     add(g, box(8, .5, 84), std(line.color), 7.5 * nx, 5.6, 0);
     const sg = panel(st.name, '🚆 ' + line.name, 18, 4, '#' + new THREE.Color(line.color).getHexString()); sg.position.set(11.6, 4, 0); sg.rotation.y = Math.PI / 2; g.add(sg);
     pad(p.x + Math.cos(p.yaw) * 7.5, p.z - Math.sin(p.yaw) * 7.5, 4, 45, p.yaw, p.y + .6);
@@ -342,6 +372,22 @@ export function buildPlace(pl, scene) {
   const [x, z] = toXZ(pl.lon, pl.lat); pl.x = x; pl.z = z;
   const y = Math.max(0, heightAt(x, z)), g = new THREE.Group(); g.position.set(x, y, z); scene.add(g);
   const T = pl.type;
+  const S = (lx, lz, hw, hd, top) => solidBox(x + lx, z + lz, hw, hd, 0, y + top);
+  ({
+    catedral: () => { S(0, 0, 15, 30, 20); S(0, 30, 16, 5, 26); S(0, 60, 1, 1, 8); },
+    obelisco: () => S(0, 0, 4, 4, 40),
+    faro: () => { S(0, 0, 20, 110, 32); S(0, 40, 70, 18, 26); },
+    columna: () => S(0, 0, 15, 15, 60),
+    basilica: () => S(0, -38, 25, 35, 18),
+    iglesia: () => { S(0, 0, 7, 12, 10); S(0, 12, 3, 3, 20); },
+    fuerte: () => { for (const [a, b, w2, d2] of [[0, -20, 50, 4], [0, 20, 50, 4], [-25, 0, 4, 44], [25, 0, 4, 44]]) S(a, b, w2 / 2, d2 / 2, 9); S(0, 0, 5, 5, 14); },
+    teleferico: () => S(0, 0, 5, 5, 10),
+    salto: () => S(0, -10, 20, 7, 40),
+    reloj: () => S(0, 0, 2.5, 2.5, 18),
+    pico: () => S(0, 0, 1.5, 1.5, 2),
+    mercado: () => { for (let i = 0; i < 12; i++) S((i % 4 - 1.5) * 9, Math.floor(i / 4) * 9 - 9, 3, 3, 2.6); },
+    parque: () => { for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2; S(Math.cos(a) * 30, Math.sin(a) * 30, .5, .5, 5); } },
+  }[T] || (() => {}))();
   if (T === 'catedral') {
     add(g, box(30, 20, 60), MT.stone); add(g, box(32, 26, 10), MT.stone, 0, 0, 30);
     for (const s of [-1, 1]) add(g, box(4, 30, 4), MT.stone, s * 14, 0, 30);
@@ -437,6 +483,7 @@ const TREE = (() => {
   const mk = parts => { const g = mergeGeometries(parts.map(clean)); return g; };
   return { palm: mk(palm), tree: mk(tree), pine: mk(pine), house: mk(house), mat: m };
 })();
+const AP_XZ = AIRPORTS.map(a => toXZ(a.lon, a.lat));
 export function decorateChunk(cx, cz, scene) {
   const g = new THREE.Group(), ox = cx * CH, oz = cz * CH;
   const lists = { palm: [], tree: [], pine: [], house: [] };
@@ -447,6 +494,7 @@ export function decorateChunk(cx, cz, scene) {
     const h = H0(x, z); if (h < 2.5) continue;
     const local = fbm(x / 400, z / 400); if (local < .38) continue;
     if (TOWNS.some(t => Math.hypot(x - t.p.x, z - t.p.z) < t.R * .9)) continue;
+    if (AP_XZ.some(([ax, az]) => Math.hypot(x - ax, z - az) < 1000)) continue; // pistas libres de árboles
     const r = nearRoad(x, z, 30); if (r && r.e < 22) continue;
     const sd = sdAt(x, z), y = heightAt(x, z);
     const kind = h > 620 ? 'pine' : (sd < 2500 || rand2(k, cx) < .3) ? 'palm' : 'tree';
@@ -459,6 +507,13 @@ export function decorateChunk(cx, cz, scene) {
     if (TOWNS.some(t => Math.hypot(x - t.p.x, z - t.p.z) < t.R * .8)) continue;
     const s = r.s; lists.house.push([x - ox, heightAt(x, z) - .2, z - oz, Math.atan2(s.bx - s.ax, s.bz - s.az), 1]);
   }
+  // troncos y casitas son sólidos (se quitan cuando el pedazo se borra)
+  const solids = [];
+  for (const [kind, arr] of Object.entries(lists)) for (const [x, y, z, ry, s] of arr) {
+    if (kind === 'house') solids.push(solidBox(ox + x, oz + z, 3 * s, 2.5 * s, ry, y + 4 * s));
+    else solids.push(solidCircle(ox + x, oz + z, (kind === 'tree' ? .55 : .45) * s));
+  }
+  g.userData.solids = solids;
   const d = new THREE.Object3D(), col = new THREE.Color();
   for (const [kind, arr] of Object.entries(lists)) {
     if (!arr.length) continue;

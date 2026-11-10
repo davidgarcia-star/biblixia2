@@ -4,7 +4,7 @@ import { makeSportsCar, makeLuxSUV, makePickup } from './lujo.js';
 /* =========================================================
    TRANSPORTES DE BIBLIXIA 2 (diseños propios, sin marcas)
    Todos miran hacia +z y tocan el suelo en y = 0.
-   seats: [conductor, pasajero] · hide: el jugador va adentro (no se ve)
+   seats: [conductor, pasajero] · hide: el jugador va adentro (no se ve) · dim: [medio ancho, medio largo, centro] para los choques
    ========================================================= */
 const M = {};
 const std = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: .55, ...o });
@@ -41,18 +41,18 @@ function textTex(txt, bg, fg, w = 512, h = 96, font = '800 60px system-ui, sans-
 
 /* ---------- Parámetros de manejo ---------- */
 export const KINDS = {
-  bici:      { name: 'la bicicleta', emoji: '🚲', max: 14, acc: 6, turn: 1.9, off: .8, cam: 6.5, ground: true },
-  moto:      { name: 'el motor', emoji: '🏍️', max: 36, acc: 15, turn: 2.0, off: .55, cam: 7, ground: true, engine: true },
-  carro:     { name: 'el carro', emoji: '🚗', max: 40, acc: 13, turn: 1.55, off: .5, cam: 9.5, ground: true, engine: true },
-  jeepeta:   { name: 'la jeepeta', emoji: '🚙', max: 38, acc: 12, turn: 1.5, off: .8, cam: 10, ground: true, engine: true },
-  camioneta: { name: 'la camioneta', emoji: '🛻', max: 36, acc: 11, turn: 1.45, off: .85, cam: 10.5, ground: true, engine: true },
-  guagua:    { name: 'la guagua', emoji: '🚌', max: 31, acc: 8, turn: 1.1, off: .5, cam: 15, ground: true, engine: true, hide: true },
-  caballo:   { name: 'el caballo', emoji: '🐎', max: 23, acc: 10, turn: 2.2, off: 1, cam: 7.5, ground: true, animal: true },
-  burro:     { name: 'el burro', emoji: '🫏', max: 12, acc: 6, turn: 2.0, off: 1, cam: 6.5, ground: true, animal: true },
-  lancha:    { name: 'la lancha', emoji: '🚤', max: 34, acc: 11, turn: 1.3, cam: 11, water: true, engine: true },
-  avion:     { name: 'el avión', emoji: '✈️', max: 115, acc: 16, turn: .75, cam: 30, air: true, takeoff: 38, hide: true, engine: true },
-  heli:      { name: 'el helicóptero', emoji: '🚁', max: 62, acc: 20, turn: 1.6, cam: 20, air: true, heli: true, hide: true, engine: true },
-  tren:      { name: 'el tren', emoji: '🚆', max: 46, acc: 6, turn: 0, cam: 26, rail: true, hide: true, engine: true },
+  bici:      { name: 'la bicicleta', emoji: '🚲', max: 14, acc: 6, turn: 1.9, off: .8, cam: 6.5, ground: true, dim: [.32, .92, 0] },
+  moto:      { name: 'el motor', emoji: '🏍️', max: 36, acc: 15, turn: 2.0, off: .55, cam: 7, ground: true, engine: true, dim: [.38, 1.1, .03] },
+  carro:     { name: 'el carro', emoji: '🚗', max: 40, acc: 13, turn: 1.55, off: .5, cam: 9.5, ground: true, engine: true, hide: true, dim: [1.1, 2.45, .03] },
+  jeepeta:   { name: 'la jeepeta', emoji: '🚙', max: 38, acc: 12, turn: 1.5, off: .8, cam: 10, ground: true, engine: true, hide: true, dim: [1.2, 2.57, 0] },
+  camioneta: { name: 'la camioneta', emoji: '🛻', max: 36, acc: 11, turn: 1.45, off: .85, cam: 10.5, ground: true, engine: true, hide: true, dim: [1.2, 2.92, .03] },
+  guagua:    { name: 'la guagua', emoji: '🚌', max: 31, acc: 8, turn: 1.1, off: .5, cam: 15, ground: true, engine: true, hide: true, dim: [1.28, 4.53, 0] },
+  caballo:   { name: 'el caballo', emoji: '🐎', max: 23, acc: 10, turn: 2.2, off: 1, cam: 7.5, ground: true, animal: true, dim: [.4, 1.33, .17] },
+  burro:     { name: 'el burro', emoji: '🫏', max: 12, acc: 6, turn: 2.0, off: 1, cam: 6.5, ground: true, animal: true, dim: [.45, .96, .12] },
+  lancha:    { name: 'la lancha', emoji: '🚤', max: 34, acc: 11, turn: 1.3, cam: 11, water: true, engine: true, dim: [1.27, 3.1, .13] },
+  avion:     { name: 'el avión', emoji: '✈️', max: 115, acc: 16, turn: .75, cam: 30, air: true, takeoff: 38, hide: true, engine: true, dim: [2.2, 9.2, -1] },
+  heli:      { name: 'el helicóptero', emoji: '🚁', max: 62, acc: 20, turn: 1.6, cam: 20, air: true, heli: true, hide: true, engine: true, dim: [1.6, 4.9, -2] },
+  tren:      { name: 'el tren', emoji: '🚆', max: 46, acc: 6, turn: 0, cam: 26, rail: true, hide: true, engine: true, dim: [1.7, 5.5, 0] },
 };
 
 /* ---------- Modelos ---------- */
