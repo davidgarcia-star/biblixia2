@@ -46,8 +46,8 @@ export function makePlatanero() {
   horn.rotation.x = -Math.PI / 2; horn.position.set(0, 2.25, .5); v.add(horn);
   const post = new THREE.Mesh(new THREE.CylinderGeometry(.03, .03, .3), horn.material); post.position.set(0, 2.05, .5); v.add(post);
   // letreros a los lados
-  const t = canvasTex(1024, 256, (x, w, h) => { x.fillStyle = '#f5c518'; x.fillRect(0, 0, w, h); x.fillStyle = '#2e7d4f'; x.fillRect(0, 0, w, 26); x.fillRect(0, h - 26, w, 26); x.fillStyle = '#1a3a12'; x.textAlign = 'center'; x.font = '900 92px system-ui, sans-serif'; x.fillText('🍌 ¡LLEGÓ EL PLATANERO!', w / 2, 128); x.font = '800 52px system-ui, sans-serif'; x.fillText('¡Aprovecha la oferta!', w / 2, 200); });
-  const sm = new THREE.MeshStandardMaterial({ map: t, side: THREE.DoubleSide });
+  const t = canvasTex(1024, 256, (x, w, h) => { x.fillStyle = '#f5c518'; x.fillRect(0, 0, w, h); x.fillStyle = '#2e7d4f'; x.fillRect(0, 0, w, 26); x.fillRect(0, h - 26, w, 26); x.fillStyle = '#1a3a12'; x.textAlign = 'center'; const fit = (s, size, wt, y) => { x.font = `${wt} ${size}px system-ui, sans-serif`; const tw = x.measureText(s).width; if (tw > w - 60) x.font = `${wt} ${Math.floor(size * (w - 60) / tw)}px system-ui, sans-serif`; x.fillText(s, w / 2, y); }; fit('🍌 ¡LLEGÓ EL PLATANERO!', 92, 900, 130); fit('¡Aprovecha la oferta!', 56, 800, 205); });
+  const sm = new THREE.MeshStandardMaterial({ map: t });
   for (const s of [-1, 1]) { const p = new THREE.Mesh(new THREE.PlaneGeometry(2.6, .65), sm); p.position.set(s * 1.1, 1.55, -1.45); p.rotation.y = s * Math.PI / 2; v.add(p); }
   const back = new THREE.Mesh(new THREE.PlaneGeometry(1.9, .5), sm); back.position.set(0, 1.5, -2.82); back.rotation.y = Math.PI; v.add(back);
   return v;

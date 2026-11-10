@@ -55,10 +55,18 @@ export function label(text, sub = '', { color = '#ffd34d', bg = 'rgba(10,22,48,.
   return s;
 }
 function panel(text, sub, w = 16, h = 4, bg = '#0b2a6a', fg = '#ffffff') {
-  const t = canvasTex(1024, 256, (x, W, H) => { x.fillStyle = bg; x.fillRect(0, 0, W, H); x.strokeStyle = '#fff'; x.lineWidth = 10; x.strokeRect(10, 10, W - 20, H - 20); x.textAlign = 'center'; x.fillStyle = fg; x.font = '700 50px system-ui, sans-serif'; if (sub) x.fillText(sub, W / 2, 80); x.font = '900 92px system-ui, sans-serif'; const tw = x.measureText(text).width; if (tw > W - 60) x.font = `900 ${Math.floor(92 * (W - 60) / tw)}px system-ui, sans-serif`; x.fillText(text, W / 2, sub ? 190 : 160); });
-  return new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: t, roughness: .6, side: THREE.DoubleSide }));
+  // el texto se ajusta al ancho y se ve bien por los dos lados (no al revés)
+  const t = canvasTex(1024, 256, (x, W, H) => {
+    x.fillStyle = bg; x.fillRect(0, 0, W, H); x.strokeStyle = '#fff'; x.lineWidth = 10; x.strokeRect(10, 10, W - 20, H - 20); x.textAlign = 'center'; x.textBaseline = 'alphabetic'; x.fillStyle = fg;
+    const fit = (txt, size, weight, y) => { x.font = `${weight} ${size}px system-ui, sans-serif`; const tw = x.measureText(txt).width; if (tw > W - 70) x.font = `${weight} ${Math.floor(size * (W - 70) / tw)}px system-ui, sans-serif`; x.fillText(txt, W / 2, y); };
+    if (sub) fit(sub, 50, 700, 80);
+    fit(text, 92, 900, sub ? 190 : 160);
+  });
+  const m = new THREE.MeshStandardMaterial({ map: t, roughness: .6 });
+  const g = new THREE.Group(), geo = new THREE.PlaneGeometry(w, h);
+  const a = new THREE.Mesh(geo, m), b = new THREE.Mesh(geo, m); b.rotation.y = Math.PI; b.position.z = -.02;
+  g.add(a, b); return g;
 }
-
 /* ---------- Fachadas (ventanas que se encienden de noche) ---------- */
 const facade = canvasTex(256, 256, (x, w, h) => { x.fillStyle = '#ffffff'; x.fillRect(0, 0, w, h); for (let j = 0; j < 4; j++) for (let i = 0; i < 4; i++) { x.fillStyle = '#3a4a5a'; x.fillRect(18 + i * 60, 22 + j * 60, 36, 40); x.fillStyle = '#ffffff'; x.fillRect(16 + i * 60, 64 + j * 60, 40, 4); } });
 const facadeEm = canvasTex(256, 256, (x, w, h) => { x.fillStyle = '#000'; x.fillRect(0, 0, w, h); for (let j = 0; j < 4; j++) for (let i = 0; i < 4; i++) { if (Math.random() < .55) { x.fillStyle = '#ffcf80'; x.fillRect(18 + i * 60, 22 + j * 60, 36, 40); } } });

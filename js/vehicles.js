@@ -33,7 +33,9 @@ function wheel(g, x, y, z, r, w) {
 }
 function textTex(txt, bg, fg, w = 512, h = 96, font = '800 60px system-ui, sans-serif') {
   const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d');
-  x.fillStyle = bg; x.fillRect(0, 0, w, h); x.fillStyle = fg; x.font = font; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(txt, w / 2, h / 2 + 2);
+  x.fillStyle = bg; x.fillRect(0, 0, w, h); x.fillStyle = fg; x.font = font; x.textAlign = 'center'; x.textBaseline = 'middle';
+  const tw = x.measureText(txt).width; if (tw > w - 24) x.font = font.replace(/\d+px/, Math.floor(parseInt(font.match(/(\d+)px/)[1]) * (w - 24) / tw) + 'px');
+  x.fillText(txt, w / 2, h / 2 + 2);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 
@@ -142,7 +144,7 @@ export function makeVehicle(kind, color) {
     add(g, new THREE.BoxGeometry(2.32, .3, 12.2), blue, 0, 2.0, -.2);
     add(g, new THREE.BoxGeometry(2.33, .1, 12.2), red, 0, 1.78, -.2);
     const win = add(g, new THREE.BoxGeometry(2.34, .32, 10), new THREE.MeshStandardMaterial({ map: (() => { const t = textTex('▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪', '#f4f6f8', '#1a2430', 1024, 64, '700 48px monospace'); return t; })() }), 0, 2.75, .3); win.castShadow = false;
-    for (const s of [-1, 1]) { const lab = add(g, new THREE.PlaneGeometry(4.4, .6), new THREE.MeshBasicMaterial({ map: textTex('BIBLIXIA AIR', '#f4f6f8', '#1f4fa8'), side: THREE.DoubleSide }), s * 1.17, 3.2, -2.6, 0, s * Math.PI / 2); lab.castShadow = false; }
+    for (const s of [-1, 1]) { const lab = add(g, new THREE.PlaneGeometry(4.4, .6), new THREE.MeshBasicMaterial({ map: textTex('BIBLIXIA AIR', '#f4f6f8', '#1f4fa8') }), s * 1.17, 3.2, -2.6, 0, s * Math.PI / 2); lab.castShadow = false; }
     add(g, new THREE.BoxGeometry(1.4, .4, .1), M.glass, 0, 3.1, 7.05, -.6);
     for (const [x, z] of [[0, 5.2], [-1.6, 0], [1.6, 0]]) { add(g, new THREE.CylinderGeometry(.07, .07, 1.2), M.metal, x, .9, z); u.wheels.push(wheel(g, x, .35, z, .35, .3)); }
     u.prop = []; for (const s of [-1, 1]) { const pr = new THREE.Group(); pr.position.set(s * 3.4, 1.55, 2.45); g.add(pr); add(pr, new THREE.BoxGeometry(.12, 1.7, .05), M.black); add(pr, new THREE.BoxGeometry(1.7, .12, .05), M.black); u.prop.push(pr); }
@@ -171,7 +173,7 @@ export function makeVehicle(kind, color) {
       add(cg, new THREE.BoxGeometry(3.05, .3, L + .02), c, 0, 1.5, 0);
       add(cg, new THREE.BoxGeometry(2.6, .5, L - 1), M.black, 0, .5, 0);
       for (const z of [-3.6, 3.6]) for (const x of [-.8, .8]) u.wheels.push(wheel(cg, x, .45, z, .45, .2));
-      if (!n) { add(cg, new THREE.BoxGeometry(2.6, 1.4, .1), M.glass, 0, 2.8, L / 2 + .02); for (const s of [-1, 1]) add(cg, new THREE.BoxGeometry(.4, .25, .06), M.head, s * 1.0, 1.3, L / 2 + .03); const lab = add(cg, new THREE.PlaneGeometry(5, .7), new THREE.MeshBasicMaterial({ map: textTex('TREN BIBLIXIA', '#f4f4f2', '#1f4fa8'), side: THREE.DoubleSide }), 1.53, 3.4, -.5, 0, Math.PI / 2); lab.castShadow = false; }
+      if (!n) { add(cg, new THREE.BoxGeometry(2.6, 1.4, .1), M.glass, 0, 2.8, L / 2 + .02); for (const s of [-1, 1]) add(cg, new THREE.BoxGeometry(.4, .25, .06), M.head, s * 1.0, 1.3, L / 2 + .03); const lab = add(cg, new THREE.PlaneGeometry(5, .7), new THREE.MeshBasicMaterial({ map: textTex('TREN BIBLIXIA', '#f4f4f2', '#1f4fa8') }), 1.53, 3.4, -.5, 0, Math.PI / 2); lab.castShadow = false; }
     }
     u.cars = cars; u.carLen = 11.6;
     u.seats = [[0, 1.4, 4], [0, 1.4, -1]];
