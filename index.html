@@ -114,8 +114,8 @@
     </header>
     <div class="sp-transport" aria-hidden="true"><span>🏍️</span><span>🚗</span><span>🚌</span><span>🐎</span><span>🫏</span><span>🚲</span><span>🚆</span><span>✈️</span><span>🚁</span><span>🚤</span></div>
     <nav class="sp-menu">
-      <button class="sp-main" id="btnPlay"><span>▶ JUGAR</span><small>Recoge a un personaje y llévalo a tiempo</small></button>
-      <button class="sp-tile" id="btnMissionsMenu"><b>📋</b>Elegir misión<small>Tarjetas de viaje</small></button>
+      <button class="sp-main" id="btnPlay"><span>▶ JUGAR</span><small>Elige una provincia y a quién deseas llevar</small></button>
+      <button class="sp-tile" id="btnMissionsMenu"><b>🇩🇴</b>Elegir provincia<small>Las 32 provincias</small></button>
       <button class="sp-tile" id="btnFree"><b>🚗</b>Paseo libre<small>Recorre el país</small></button>
       <button class="sp-tile" id="btnCharacter"><b>🧑</b>Mi personaje<small>Ropa y nombre</small></button>
       <button class="sp-tile" id="btnCollection"><b>🏆</b>Colección<small>Personajes y versículos</small></button>
@@ -178,11 +178,18 @@
   </div>
 </div>
 
+<div class="screen hidden scroll" id="provsel">
+  <h2>🇩🇴 Elige una provincia</h2>
+  <p class="sub">Escoge una de las 32 provincias de República Dominicana y luego a quién deseas llevar desde allí.</p>
+  <div class="row2 wrap"><button class="btn" id="pNear">📍 Cerca de mí</button><button class="btn ghost hidden" id="pCancel">✖ Cancelar misión actual</button><button class="btn ghost" id="pBack">Volver</button></div>
+  <div class="plist" id="pList"></div>
+</div>
+
 <div class="screen hidden scroll" id="missions">
-  <h2>📋 Solicitudes de viaje</h2>
-  <p class="sub">Elige a quién llevar. El tiempo empieza cuando el personaje sube contigo.</p>
+  <h2 id="mTitle">📋 Solicitudes de viaje</h2>
+  <p class="sub" id="mSub">Elige a quién llevar. El tiempo empieza cuando el personaje sube contigo.</p>
   <div class="mlist" id="mList"></div>
-  <div class="row2 wrap"><button class="btn ghost" id="mReroll">🔄 Otras solicitudes</button><button class="btn ghost hidden" id="mCancel">✖ Cancelar misión actual</button><button class="btn ghost" id="mBack">Volver</button></div>
+  <div class="row2 wrap"><button class="btn ghost" id="mReroll">⬅ Otra provincia</button><button class="btn ghost hidden" id="mCancel">✖ Cancelar misión actual</button><button class="btn ghost" id="mBack">Volver</button></div>
 </div>
 
 <div class="screen hidden scroll" id="collection">

@@ -230,3 +230,11 @@ body.driving #prompt { bottom: 128px; }
 .lg-road, .lg-rail { display: inline-block; width: 18px; height: 3px; vertical-align: middle; background: var(--oro); } .lg-rail { background: repeating-linear-gradient(90deg, #d1342f 0 5px, transparent 5px 8px); }
 #bigmapCanvas { flex: 1; width: 100%; touch-action: none; cursor: grab; }
 #enterLoad, #glLost { z-index: 50; }
+
+/* ---------- Elegir provincia ---------- */
+.plist { width: min(1000px, 100%); margin-top: 8px; }
+.preg { margin: 16px 0 8px; font-size: 14px; letter-spacing: .12em; text-transform: uppercase; color: var(--oro); }
+.pgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+.pcard { text-align: left; border: 1px solid var(--borde); border-radius: 16px; padding: 12px 14px; background: linear-gradient(160deg, rgba(0,45,98,.85), rgba(8,22,52,.9) 60%, rgba(206,17,38,.35)); display: flex; flex-direction: column; gap: 3px; transition: transform .15s, border-color .15s; }
+.pcard:hover { transform: translateY(-2px); border-color: var(--oro); }
+.pcard b { font-size: 16px; } .pcard small { opacity: .75; font-size: 12px; } .pcard span { font-size: 12px; color: #7ef0a4; font-weight: 700; margin-top: 4px; }

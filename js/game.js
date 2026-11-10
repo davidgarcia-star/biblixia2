@@ -379,7 +379,7 @@ function walk(dt) {
   const I = input(), run = I.run;
   const target = Math.hypot(I.fx, I.fz) > .1 ? (run ? 8.5 : 4.6) * Math.min(1, Math.hypot(I.fx, I.fz)) : 0;
   P.speed = lerp(P.speed, target, Math.min(1, dt * 8));
-  if (target > 0) { const a = cam.yaw + Math.atan2(I.fx, I.fz) + Math.PI; let d = a - P.heading; d = Math.atan2(Math.sin(d), Math.cos(d)); P.heading += d * Math.min(1, dt * 10); }
+  if (target > 0) { const a = cam.yaw - Math.atan2(I.fx, I.fz); let d = a - P.heading; d = Math.atan2(Math.sin(d), Math.cos(d)); P.heading += d * Math.min(1, dt * 10); }
   const nx = P.pos.x + Math.sin(P.heading) * P.speed * dt, nz = P.pos.z + Math.cos(P.heading) * P.speed * dt;
   const b = blocked(nx, nz), g = groundAt(nx, nz);
   if (b) { blockMsg(b); P.speed = 0; }
@@ -854,7 +854,7 @@ function loop() {
   if (!world) return;
   if (state === 'play') { step(dt); updateCamera(dt); updateHUD(dt); drawMini(dt); }
   else if (state === 'verse') { verseTimer -= dt; $('vProg').style.width = (clamp(1 - verseTimer / verseTimer0, 0, 1) * 100) + '%'; if (verseTimer <= 0 && $('btnVerseOk').disabled) { $('btnVerseOk').disabled = false; $('btnVerseOk').textContent = '✅ ¡Amén! Continuar'; $('verse').classList.add('ready'); } }
-  else if (state === 'menu' || state === 'loading2') menuFly(dt);
+  else if (state === 'menu' || (state === 'loading2' && !entering)) menuFly(dt);
   if (state !== 'play' && state !== 'map' && state !== 'talk' && state !== 'verse') sound.engine && P.veh && sound.engineOff();
   // el sol y la sombra siguen al jugador; el agua y el cielo también
   const c = camera.position, focus = state === 'play' || state === 'talk' || state === 'verse' || state === 'map' ? P.pos : camLook;
@@ -862,12 +862,13 @@ function loop() {
   sky.position.copy(c); stars.position.copy(c); moon.position.copy(c).addScaledVector(moonDir, 40000);
   if (water) water.userData.follow(c.x, c.z, dt);
   lamp.position.set(P.pos.x, P.pos.y + 3, P.pos.z); lamp.intensity = save.time === 'noche' && state === 'play' && !P.veh ? 40 : 0;
-  if (chunks) chunks.update(state === 'play' || state === 'talk' || state === 'verse' ? P.pos.x : camLook.x, state === 'play' || state === 'talk' || state === 'verse' ? P.pos.z : camLook.z, farMesh, state === 'loading2' ? 40 : 7);
+  const onP = state === 'play' || state === 'talk' || state === 'verse' || state === 'map' || state === 'pause' || entering;
+  if (chunks) chunks.update(onP ? P.pos.x : camLook.x, onP ? P.pos.z : camLook.z, farMesh, state === 'loading2' ? 40 : 7);
   if ((detT -= dt) <= 0) { detT = .5; for (const o of DETAIL) o.obj.visible = Math.abs(o.x - c.x) < o.d && Math.abs(o.z - c.z) < o.d; for (const t of TOWNS) { const d = Math.hypot(t.p.px - c.x, t.p.pz - c.z); t.label.visible = d > 500 && d < 22000; } }
   renderer.render(scene, camera);
 }
 // vuelo de la portada sobre la isla
-let flyA = 0, detT = 0;
+let flyA = 0, detT = 0, entering = false;
 function menuFly(dt) {
   flyA += dt * .02;
   const p = PROV.dn, R = 2600, x = p.x + Math.cos(flyA) * R, z = p.z + Math.sin(flyA) * R * .7;
@@ -879,10 +880,10 @@ function menuFly(dt) {
 /* =========================================================
    MENÚS
    ========================================================= */
-const SCREENS = ['splash', 'help', 'creator', 'missions', 'collection', 'pause', 'result'];
+const SCREENS = ['splash', 'help', 'creator', 'provsel', 'missions', 'collection', 'pause', 'result'];
 function show(id) { SCREENS.forEach(s => $(s).classList.toggle('hidden', s !== id)); const playing = id === null; $('hud').classList.toggle('hidden', !playing); $('touch').classList.toggle('hidden', !playing || !isTouch); $('topbar').classList.toggle('hidden', playing); }
 function play() {
-  show(null); state = 'play'; ensureMusic(); sound.setMusicMode('play'); updMissionHUD();
+  document.body.classList.add('ingame'); show(null); state = 'play'; ensureMusic(); sound.setMusicMode('play'); updMissionHUD();
   human.root.visible = true; cam.idle = 0;
 }
 function placePlayerStart() {
@@ -892,26 +893,59 @@ function placePlayerStart() {
 }
 async function enterGame(then) {
   if (!save.player.name) { openCreator(then); return; }
-  state = 'loading2'; $('enterLoad').classList.remove('hidden');
+  state = 'loading2'; entering = true; $('enterLoad').classList.remove('hidden');
   placePlayerStart(); rebuildPlayer();
   // preparar el terreno alrededor del jugador
   for (let i = 0; i < 400 && chunks.update(P.pos.x, P.pos.z, farMesh, 60) > 0; i++) await idle();
-  $('enterLoad').classList.add('hidden');
+  $('enterLoad').classList.add('hidden'); entering = false;
   if (!M && save.mission) resumeMission();
   play(); if (then) then();
 }
 // Portada
-$('btnPlay').onclick = () => { sound.click(); enterGame(() => { if (!M) openMissions(); }); };
-$('btnMissionsMenu').onclick = () => { sound.click(); enterGame(() => openMissions()); };
+$('btnPlay').onclick = () => { sound.click(); sound.unlock(); if (save.mission && !M) { enterGame(); return; } if (!save.player.name) { openCreator(openProvinces); return; } state = 'menu'; openProvinces(); };
+$('btnMissionsMenu').onclick = () => { sound.click(); if (!save.player.name) { openCreator(openProvinces); return; } state = 'menu'; openProvinces(); };
 $('btnFree').onclick = () => { sound.click(); enterGame(() => { if (M) clearMission(); toast('🚗 Paseo libre: recorre el país a tu gusto', '#7ef0a4'); }); };
 $('btnCharacter').onclick = () => { sound.click(); openCreator(); };
 $('btnCollection').onclick = () => { sound.click(); renderCollection(); show('collection'); state = 'menu'; };
 $('btnHelp').onclick = () => { sound.click(); show('help'); };
 document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => { sound.click(); show(b.dataset.go); state = 'menu'; });
 // Misiones
-function openMissions() {
-  const list = missionOffers(), box = $('mList'); box.innerHTML = '';
+// Solicitudes para una provincia elegida: todos los personajes que pueden salir desde allí
+function offersFor(p) {
+  const out = [];
+  for (const m of MISSIONS) {
+    const def = CHAR[m.who]; if (!def) continue;
+    const d = destOf(m.dest); if (m.dest === p.id || (d.place && d.place.prov === p.id)) continue;
+    const dist = Math.hypot(p.px - d.x, p.pz - d.z); if (dist < 6000) continue;
+    out.push({ m, def, pick: p, dest: d, dist, time: Math.round(dist / 24 + 150) });
+  }
+  return out.sort((a, b) => (save.done[a.def.id] !== undefined) - (save.done[b.def.id] !== undefined) || a.dist - b.dist);
+}
+let missionProv = null;
+function openProvinces() {
   if (state === 'play') state = 'pause';
+  const box = $('pList'); box.innerHTML = '';
+  const regions = [...new Set(PROVINCES.map(p => p.region))];
+  for (const r of regions) {
+    const h = document.createElement('h3'); h.className = 'preg'; h.textContent = 'Región ' + r; box.appendChild(h);
+    const grid = document.createElement('div'); grid.className = 'pgrid'; box.appendChild(grid);
+    for (const p of PROVINCES.filter(q => q.region === r).sort((a, b) => a.name.localeCompare(b.name, 'es'))) {
+      const n = offersFor(p).length, b = document.createElement('button'); b.className = 'pcard';
+      b.innerHTML = `<b>${p.name}</b><small>${p.cap}</small><span>🙏 ${n} personajes</span>`;
+      b.onclick = () => { sound.click(); openMissions(p); };
+      grid.appendChild(b);
+    }
+  }
+  $('pNear').classList.toggle('hidden', !(world && save.player.name && P.pos.lengthSq() > 0 && document.body.classList.contains('ingame')));
+  $('pCancel').classList.toggle('hidden', !M);
+  show('provsel');
+}
+function openMissions(prov) {
+  missionProv = prov || null;
+  const list = prov ? offersFor(prov) : missionOffers(), box = $('mList'); box.innerHTML = '';
+  if (state === 'play') state = 'pause';
+  $('mTitle').textContent = prov ? `📍 ${prov.name} · ¿A quién deseas llevar?` : '📋 Solicitudes de viaje cerca de ti';
+  $('mSub').textContent = prov ? `Los personajes te esperan en la plaza de ${prov.cap}. El tiempo empieza cuando el personaje sube contigo.` : 'Elige a quién llevar. El tiempo empieza cuando el personaje sube contigo.';
   for (const o of list) {
     const mins = Math.round(o.time / 60), lvl = o.dist < 25000 ? ['Corto', 'c'] : o.dist < 60000 ? ['Medio', 'm'] : ['Largo', 'l'];
     const b = document.createElement('button'); b.className = 'mcard ' + lvl[1];
@@ -920,25 +954,41 @@ function openMissions() {
       <p>${o.def.name.split(' (')[0]} ${o.m.why}</p>
       <div class="mc-treasure">💎 Tesoro: ${o.def.emoji || '🎁'} ${o.def.gift}</div>
       <div class="mc-foot"><span>⏱ ${mins} min</span><span>📏 ${fmtKm(o.dist)}</span><span>⭐ ${'★'.repeat(save.done[o.def.id] || 0) || 'Nuevo'}</span></div>`;
-    b.onclick = () => { sound.click(); startMission(o); play(); };
+    b.onclick = () => { sound.click(); if (prov) startAt(o); else { startMission(o); play(); } };
     box.appendChild(b);
   }
+  $('mReroll').textContent = prov ? '⬅ Otra provincia' : '🗺 Elegir provincia';
   $('mCancel').classList.toggle('hidden', !M);
   show('missions');
 }
-$('mReroll').onclick = () => { sound.click(); openMissions(); };
-$('mBack').onclick = () => { sound.click(); if (world && P.pos.lengthSq() > 0 && save.player.name && (M || state !== 'menu')) play(); else { show('splash'); state = 'menu'; } };
-$('mCancel').onclick = () => { sound.click(); clearMission(); toast('Misión cancelada', '#ffd34d'); openMissions(); };
-$('btnMissions').onclick = () => { sound.click(); openMissions(); };
+// viajar a la provincia elegida y empezar la misión junto al personaje
+async function startAt(o) {
+  if (!save.player.name) { openCreator(() => startAt(o)); return; }
+  if (P.veh) { const v = P.veh; v.speed = 0; if (v.obj) v.obj.userData.engineOn = false; P.veh = null; sound.engineOff(); driveUI(false); if (v.kind === 'tren') v.auto = 'resume'; }
+  clearMission(true); startMission(o);
+  P.pos.set(M.pick.x - 4, 0, M.pick.z - 6); P.pos.y = groundAt(P.pos.x, P.pos.z).y; P.heading = Math.atan2(M.pick.x - P.pos.x, M.pick.z - P.pos.z); P.vy = 0;
+  camPos.set(P.pos.x, P.pos.y + 6, P.pos.z - 8); cam.yaw = P.heading; save.pos = { x: P.pos.x, z: P.pos.z }; persist();
+  state = 'loading2'; entering = true; show(null); $('hud').classList.add('hidden'); $('enterLoad').classList.remove('hidden'); rebuildPlayer();
+  for (let i = 0; i < 400 && chunks.update(P.pos.x, P.pos.z, farMesh, 60) > 0; i++) await idle();
+  $('enterLoad').classList.add('hidden'); entering = false; play();
+  toast(`🙏 ${o.def.name.split(' (')[0]} te espera aquí: acércate y pulsa T`, '#ffd34d');
+}
+$('mReroll').onclick = () => { sound.click(); if (missionProv) openProvinces(); else openProvinces(); };
+$('mBack').onclick = () => { sound.click(); if (missionProv) openProvinces(); else if (document.body.classList.contains('ingame')) play(); else { show('splash'); state = 'menu'; } };
+$('mCancel').onclick = () => { sound.click(); clearMission(); toast('Misión cancelada', '#ffd34d'); openProvinces(); };
+$('pCancel').onclick = () => { sound.click(); clearMission(); toast('Misión cancelada', '#ffd34d'); openProvinces(); };
+$('pNear').onclick = () => { sound.click(); openMissions(); };
+$('pBack').onclick = () => { sound.click(); if (document.body.classList.contains('ingame')) play(); else { show('splash'); state = 'menu'; } };
+$('btnMissions').onclick = () => { sound.click(); openProvinces(); };
 // Pausa
 function pauseGame() { if (state !== 'play') return; state = 'pause'; show('pause'); sound.engineOff(); }
 function resumeGame() { play(); }
 $('btnPause').onclick = () => { sound.click(); pauseGame(); };
 $('btnResume').onclick = () => { sound.click(); resumeGame(); };
-$('btnPauseMissions').onclick = () => { sound.click(); openMissions(); };
+$('btnPauseMissions').onclick = () => { sound.click(); openProvinces(); };
 $('btnPauseHome').onclick = () => { sound.click(); goHome(); };
 $('btnPauseExit').onclick = exitGame;
-$('btnResNext').onclick = () => { sound.click(); openMissions(); };
+$('btnResNext').onclick = () => { sound.click(); openProvinces(); };
 $('btnResFree').onclick = () => { sound.click(); play(); };
 $('btnMap').onclick = () => { sound.click(); openMap(); }; mini.addEventListener('click', () => openMap());
 $('bigmapClose').onclick = () => { sound.click(); closeMap(); };
@@ -984,7 +1034,7 @@ document.querySelectorAll('[data-gender]').forEach(b => b.onclick = () => { draf
 document.querySelectorAll('[data-leg]').forEach(b => b.onclick = () => { draft.legwear = b.dataset.leg; applyDraft(); });
 document.querySelectorAll('[data-topstyle]').forEach(b => b.onclick = () => { draft.topStyle = b.dataset.topstyle; applyDraft(); });
 $('pName').addEventListener('input', e => { const c = cleanName(e.target.value); if (c !== e.target.value) e.target.value = c; draft.name = c; clearTimeout(applyDraft.h); applyDraft.h = setTimeout(applyDraft, 300); $('btnCreate').disabled = c.length < 2; });
-$('btnCreate').onclick = () => { draft.name = cleanName($('pName').value); if (draft.name.length < 2) return; applyDraft(); persist(); sound.click(); const f = afterCreate; afterCreate = null; if (f) enterGame(f); else { show('splash'); state = 'menu'; } };
+$('btnCreate').onclick = () => { draft.name = cleanName($('pName').value); if (draft.name.length < 2) return; applyDraft(); persist(); sound.click(); const f = afterCreate; afterCreate = null; if (f === openProvinces) { state = 'menu'; openProvinces(); } else if (f) enterGame(f); else { show('splash'); state = 'menu'; } };
 $('btnCreatorBack').onclick = () => { sound.click(); show('splash'); state = 'menu'; };
 // vista previa del personaje (render aparte)
 const prevR = new THREE.WebGLRenderer({ canvas: $('preview'), antialias: true, alpha: true }); prevR.outputColorSpace = THREE.SRGBColorSpace; prevR.toneMapping = THREE.ACESFilmicToneMapping; prevR.toneMappingExposure = .9;
@@ -1004,7 +1054,7 @@ const fsReq = document.documentElement.requestFullscreen || document.documentEle
 function toggleFull() { if (!fsReq) { toast('En iPhone: Compartir ⬆️ → «Agregar a inicio»', '#ffd34d'); return; } if (document.fullscreenElement || document.webkitFullscreenElement) (document.exitFullscreen || document.webkitExitFullscreen).call(document); else { try { const r = fsReq.call(document.documentElement, { navigationUI: 'hide' }); if (r && r.catch) r.catch(() => {}); } catch (e) {} } }
 $('tbFull').onclick = toggleFull; $('btnFull').onclick = toggleFull;
 const SITE = 'https://davidgarcia-star.github.io/luisdavidgarcia/';
-function goHome() { persist(); sound.engineOff(); state = 'menu'; show('splash'); sound.setMusicMode('menu'); }
+function goHome() { persist(); sound.engineOff(); document.body.classList.remove('ingame'); state = 'menu'; show('splash'); sound.setMusicMode('menu'); }
 function exitGame() { persist(); window.close(); setTimeout(() => { if (!window.closed) location.href = SITE; }, 250); }
 $('btnHome').onclick = goHome; $('btnExit').onclick = exitGame;
 addEventListener('beforeunload', () => { save.pos = { x: P.pos.x, z: P.pos.z }; persist(); });
