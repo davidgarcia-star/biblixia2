@@ -159,6 +159,7 @@ body.driving #prompt { bottom: 128px; }
 .tbtns button.on, .tbtns button.active { background: rgba(255,211,77,.4); border-color: var(--oro); }
 #tTake { background: linear-gradient(180deg, rgba(255,211,77,.5), rgba(245,180,42,.35)); }
 #tUp, #tDown { background: rgba(42,106,216,.55); }
+#tGas { grid-column: 1 / -1; height: 78px; font-size: 26px; background: linear-gradient(180deg, rgba(60,207,110,.6), rgba(30,140,70,.5)); border-color: #7ef0a4; }
 @media (pointer: coarse) {
   .mini-wrap { width: 124px; height: 124px; left: auto; right: 10px; bottom: auto; top: 148px; }
   .ibs { max-width: 210px; gap: 5px; } .ib { width: 36px; height: 36px; font-size: 15px; border-radius: 10px; }

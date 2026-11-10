@@ -11,6 +11,8 @@ import { buildTown, buildAirport, buildPorts, buildStations, buildTolls, highway
 const groundAt = (x, z) => { const g = groundAt0(x, z), p = padAt(x, z); return p > g.y - .02 ? { y: p, road: 'pad', main: false } : g; };
 import { makeVehicle, animateVehicle, KINDS, TRAFFIC_COLORS } from './vehicles.js';
 import { buildBaseMap, drawMap } from './maps.js';
+import { initGente, updateGente, CITY_LOOPS } from './gente.js';
+import { bakeInPlace } from './human.js';
 
 /* =========================================================
    BIBLIXIA 2 · Lleva a los personajes de la Biblia por República Dominicana
@@ -101,7 +103,7 @@ async function buildWorld() {
   const ports = buildPorts(scene), stations = buildStations(scene); buildTolls(scene); highwayPumps(scene);
   loadBar(.82, 'Lugares famosos…'); await idle();
   for (const pl of PLACES) buildPlace(pl, scene);
-  buildBaseMap();
+  buildBaseMap(); initGente(scene, TOWNS);
   chunks = new Chunks(scene, (cx, cz) => { const g = decorateChunk(cx, cz, scene); linesInChunk(cx, cz, g); riversInChunk(cx, cz, g); return g; });
   world = { airports, ports, stations };
   spawnVehicles(); buildCoins();
@@ -219,7 +221,7 @@ canvas.addEventListener('touchmove', e => { for (const t of e.changedTouches) if
 canvas.addEventListener('touchend', () => look = null);
 const hold = (id, code) => { const b = $(id); const on = e => { e.preventDefault(); sound.unlock(); keys[code] = true; b.classList.add('on'); }; const off = () => { keys[code] = false; b.classList.remove('on'); }; b.addEventListener('touchstart', on, { passive: false }); b.addEventListener('touchend', off); b.addEventListener('touchcancel', off); b.addEventListener('mousedown', on); b.addEventListener('mouseup', off); b.addEventListener('mouseleave', off); };
 const tap = (id, fn) => { const b = $(id); b.addEventListener('touchstart', e => { e.preventDefault(); sound.unlock(); fn(); }, { passive: false }); b.addEventListener('click', fn); };
-hold('tUp', 'KeyE'); hold('tDown', 'KeyQ'); hold('tBrake', 'ShiftLeft');
+hold('tGas', 'KeyW'); hold('tUp', 'KeyE'); hold('tDown', 'KeyQ'); hold('tBrake', 'ShiftLeft');
 tap('tTake', () => takePressed = true); tap('tJump', () => jumpPressed = true); tap('tHonk', () => sound.honk(1, 0)); tap('tRun', () => toggleRun());
 function toggleRun() { runToggle = !runToggle; $('tRun').classList.toggle('active', runToggle); toast(runToggle ? '🏃 Correr' : '🚶 Caminar', '#ffd34d', true); }
 function input() {
@@ -337,7 +339,7 @@ function rideTalk(dt) {
   if (M.line < parts.length) txt = parts[M.line];
   else txt = CHAT[(M.line - parts.length) % CHAT.length];
   M.line++; M.talk = M.line <= parts.length ? 9 + txt.length * .05 : 45;
-  subtitle(M.def.name.split(' (')[0], txt);
+  subtitle(M.def.name.split(' (')[0], txt); lastNarr = clockT;
   sound.say(txt, { male: M.def.gender !== 'f', rate: .95 });
 }
 function subtitle(who, txt) { $('subWho').textContent = who; $('subTxt').textContent = txt; $('subs').classList.add('show'); clearTimeout(subtitle.h); subtitle.h = setTimeout(() => $('subs').classList.remove('show'), 4000 + txt.length * 55); }
@@ -541,17 +543,21 @@ function driveUI(on) {
   $('tUp').classList.toggle('hidden', !air); $('tDown').classList.toggle('hidden', !air);
   $('tHonk').classList.toggle('hidden', !on || air); $('tJump').classList.toggle('hidden', on); $('tRun').classList.toggle('hidden', on); $('tBrake').classList.toggle('hidden', !on || air);
   $('gauges').classList.toggle('hidden', !on);
+  $('tGas').classList.toggle('hidden', !on); $('tTakeLbl').textContent = on ? 'TOMAR / BAJAR' : 'SUBIR / TOMAR';
 }
 
 /* ---------- Tráfico, trenes y aviones automáticos ---------- */
 const TRAFFIC = [];
 function updateTraffic(dt) {
-  // carros decorativos cerca del jugador
-  const want = isTouch ? 8 : 14;
+  // carros decorativos cerca del jugador (muchos más en Santo Domingo y en las ciudades grandes)
+  const dSD = Math.min(Math.hypot(P.pos.x - PROV.dn.px, P.pos.z - PROV.dn.pz), Math.hypot(P.pos.x - PROV.sdo.px, P.pos.z - PROV.sdo.pz));
+  const bigNear = TOWNS.find(t => t.p.big && Math.hypot(P.pos.x - t.p.px, P.pos.z - t.p.pz) < t.R * 1.3);
+  const want = (dSD < 4500 ? 30 : bigNear ? 18 : 10) * (isTouch ? .5 : 1);
   for (const c of TRAFFIC) {
     c.s += c.dir * c.spd * dt; const L = c.line.cum[c.line.cum.length - 1];
-    if (c.s < 0 || c.s > L) { c.dir *= -1; c.s = clamp(c.s, 0, L); }
-    const p = linePos(c.line, c.s), side = c.dir > 0 ? 1 : -1, off = c.line.w * .22 * side;
+    if (c.line.loop) c.s = ((c.s % L) + L) % L;
+    else if (c.s < 0 || c.s > L) { c.dir *= -1; c.s = clamp(c.s, 0, L); }
+    const p = linePos(c.line, c.s), side = c.line.loop ? -1 : c.dir > 0 ? 1 : -1, off = (c.line.loop ? 2.2 * c.dir : c.line.w * .22) * side;
     c.obj.position.set(p.x + Math.cos(p.yaw) * off, p.y + .2, p.z - Math.sin(p.yaw) * off);
     c.obj.rotation.set(0, c.dir > 0 ? p.yaw : p.yaw + Math.PI, 0);
     animateVehicle(c.obj, dt, c.spd, clockT);
@@ -562,15 +568,19 @@ function updateTraffic(dt) {
   }
   if ((updateTraffic.t = (updateTraffic.t || 0) - dt) > 0) return; updateTraffic.t = 1;
   for (let i = TRAFFIC.length - 1; i >= 0; i--) { const c = TRAFFIC[i]; if (c.obj.position.distanceTo(P.pos) > 2600) { scene.remove(c.obj); TRAFFIC.splice(i, 1); } }
-  if (TRAFFIC.length < want) {
-    const r = nearRoad(P.pos.x + (Math.random() - .5) * 2400, P.pos.z + (Math.random() - .5) * 2400, 1500);
-    if (r && r.kind === 'road') {
-      const line = LINES.roads[r.s.line], s = line.cum[r.s.i] + (Math.random() - .5) * 200;
-      const kinds = ['carro', 'camioneta', 'jeepeta', 'moto', 'guagua', 'carro', 'jeepeta'], k = kinds[Math.floor(Math.random() * kinds.length)];
-      const obj = makeVehicle(k, TRAFFIC_COLORS[Math.floor(Math.random() * TRAFFIC_COLORS.length)]); scene.add(obj);
-      if (Math.hypot(linePos(line, s).x - P.pos.x, linePos(line, s).z - P.pos.z) > 250) TRAFFIC.push({ obj, line, s, dir: Math.random() < .5 ? 1 : -1, spd: KINDS[k].max * (.45 + Math.random() * .3) });
-      else scene.remove(obj);
-    }
+  for (let tries = 0; tries < 3 && TRAFFIC.length < want; tries++) {
+    let line = null, s = 0;
+    const loopsNear = CITY_LOOPS.filter(l => Math.hypot(l.town.p.px - P.pos.x, l.town.p.pz - P.pos.z) < 2200);
+    if (loopsNear.length && Math.random() < .55) { line = loopsNear[Math.floor(Math.random() * loopsNear.length)]; s = Math.random() * line.cum[line.cum.length - 1]; }
+    else { const r = nearRoad(P.pos.x + (Math.random() - .5) * 2400, P.pos.z + (Math.random() - .5) * 2400, 1500); if (r && r.kind === 'road') { line = LINES.roads[r.s.line]; s = line.cum[r.s.i] + (Math.random() - .5) * 200; } }
+    if (!line) continue;
+    const q = linePos(line, s); if (Math.hypot(q.x - P.pos.x, q.z - P.pos.z) < 120) continue;
+    const kinds = ['carro', 'camioneta', 'jeepeta', 'moto', 'moto', 'guagua', 'carro', 'jeepeta'], k = kinds[Math.floor(Math.random() * kinds.length)];
+    const obj = makeVehicle(k, TRAFFIC_COLORS[Math.floor(Math.random() * TRAFFIC_COLORS.length)]);
+    if (k === 'moto' || k === 'guagua') bakeInPlace(obj, obj.userData.wheels);
+    obj.traverse(o => { if (o.isMesh) o.castShadow = false; });
+    scene.add(obj);
+    TRAFFIC.push({ obj, line, s, dir: Math.random() < .5 ? 1 : -1, spd: line.loop ? 7 + Math.random() * 5 : KINDS[k].max * (.45 + Math.random() * .3) });
   }
 }
 function updateTrains(dt) {
@@ -777,7 +787,7 @@ function updatePlaces() {
 /* =========================================================
    BUCLE PRINCIPAL
    ========================================================= */
-let clockT = 0, lastNow = performance.now(), saveT = 0, menuT = 0;
+let lastNarr = -99, clockT = 0, lastNow = performance.now(), saveT = 0, menuT = 0;
 function step(dt) {
   promptShown = false;
   if (P.veh) drive(dt); else walk(dt);
@@ -832,6 +842,7 @@ function step(dt) {
   }
   takePressed = false;
   if (!promptShown && P.veh) $('prompt').classList.remove('show');
+  updateGente(dt, P.pos, clockT, sound, () => clockT - lastNarr > 10, groundAt);
   updateCoins(dt, clockT); updateTrains(dt); updateTraffic(dt); updateSkyPlanes(dt); updateParked(dt); updatePlaces();
   // pequeñas animaciones de lugares
   for (const p of PLACES) { if (p.cab) { const k = (Math.sin(clockT * .08) + 1) / 2; p.cab.m.position.lerpVectors(p.cab.from, p.cab.to, k); } if (p.flag) p.flag.rotation.y = Math.sin(clockT * 2) * .25; }

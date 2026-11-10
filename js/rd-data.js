@@ -116,6 +116,30 @@ export const ROADS = [
   { name: 'Carretera de Ocoa', path: ['peravia', [-70.42, 18.42], 'ocoa'] },
   { name: 'Carretera de Jarabacoa y Constanza', path: ['lavega', [-70.64, 19.12], [-70.70, 19.00], [-70.74, 18.91]] },
   { name: 'Carretera Turística de la Costa Norte', path: ['puertoplata', [-70.52, 19.75], [-70.40, 19.74], [-70.20, 19.67], [-70.08, 19.63], [-69.92, 19.60], 'mts'] },
+  // --- más carreteras ---
+  { name: 'Carretera Higüey – Miches – Sabana de la Mar', path: ['altagracia', [-68.80, 18.80], [-69.04, 18.985], [-69.20, 19.02], [-69.385, 19.065]] },
+  { name: 'Carretera Hato Mayor – Sabana de la Mar', path: ['hatomayor', [-69.33, 18.92], [-69.385, 19.06]] },
+  { name: 'Carretera La Romana – Bayahíbe', path: ['laromana', [-68.88, 18.40], [-68.84, 18.37]] },
+  { name: 'Carretera Higüey – Boca de Yuma', path: ['altagracia', [-68.65, 18.48], [-68.61, 18.38]] },
+  { name: 'Carretera Punta Cana – Bávaro – Uvero Alto', path: [[-68.37, 18.56], [-68.41, 18.68], [-68.55, 18.80]] },
+  { name: 'Carretera Puerto Plata – Luperón – Monte Cristi', path: ['puertoplata', [-70.95, 19.85], [-71.25, 19.76], [-71.45, 19.75], 'montecristi'] },
+  { name: 'Carretera Cabo Rojo – Bahía de las Águilas', path: ['pedernales', [-71.66, 17.91], [-71.62, 17.86]] },
+  { name: 'Carretera Constanza – Valle Nuevo – San José de Ocoa', path: [[-70.74, 18.91], [-70.65, 18.76], 'ocoa'] },
+  { name: 'Camino a La Ciénaga (Pico Duarte)', path: [[-70.64, 19.12], [-70.80, 19.08], [-70.87, 19.06]] },
+  { name: 'Carretera Azua – Padre Las Casas', path: ['azua', [-70.85, 18.62], [-70.94, 18.73]] },
+  { name: 'Carretera Santiago – San José de las Matas', path: ['santiago', [-70.85, 19.38], [-70.94, 19.34]] },
+  { name: 'Carretera Moca – Gaspar Hernández', path: ['espaillat', [-70.42, 19.52], [-70.28, 19.63]] },
+  { name: 'Carretera Bonao – Constanza', path: ['mnouel', [-70.58, 18.95], [-70.74, 18.91]] },
+  { name: 'Carretera Baní – Las Calderas', path: ['peravia', [-70.45, 18.24], [-70.52, 18.22]] },
+  // --- avenidas de Santo Domingo y Santiago ---
+  { name: 'Malecón (Av. George Washington)', city: true, path: [[-69.960, 18.452], [-69.930, 18.458], [-69.905, 18.462], [-69.885, 18.470]] },
+  { name: 'Avenida 27 de Febrero', city: true, path: [[-69.995, 18.468], [-69.955, 18.476], [-69.925, 18.481], [-69.895, 18.486]] },
+  { name: 'Avenida John F. Kennedy', city: true, path: [[-69.990, 18.492], [-69.950, 18.490], [-69.915, 18.489]] },
+  { name: 'Avenida Máximo Gómez', city: true, path: [[-69.905, 18.458], [-69.906, 18.485], [-69.905, 18.515]] },
+  { name: 'Avenida Winston Churchill', city: true, path: [[-69.947, 18.448], [-69.945, 18.475], [-69.942, 18.500]] },
+  { name: 'Avenida Abraham Lincoln', city: true, path: [[-69.935, 18.455], [-69.934, 18.478], [-69.932, 18.497]] },
+  { name: 'Avenida Charles de Gaulle', city: true, path: [[-69.835, 18.470], [-69.832, 18.515], [-69.828, 18.560]] },
+  { name: 'Avenida Estrella Sadhalá (Santiago)', city: true, path: [[-70.705, 19.435], [-70.698, 19.455], [-70.690, 19.480]] },
 ];
 
 /* ---------- Tren BIBLIXIA (dos líneas) ---------- */
