@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://davidgarcia-star.github.io/biblixia2/sitemap.xml

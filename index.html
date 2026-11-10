@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' data: blob: https://abacus.jasoncameron.dev; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#06142e">
+<title>BIBLIXIA 2 – Juego bíblico 3D en República Dominicana | Lleva a los personajes de la Biblia</title>
+<meta name="description" content="BIBLIXIA 2 es un juego bíblico cristiano en 3D, gratis, en el mapa de República Dominicana: lleva a profetas, apóstoles y personajes de la Biblia a las 32 provincias en moto, carro, guagua, caballo, burro, bicicleta, tren, avión, helicóptero o lancha. Versículos LBLA. Creado por Luis David Esteban García · MIPROAA.">
+<meta name="keywords" content="BIBLIXIA 2, Biblixia 2, Biblixia, juego bíblico, juego biblico 3D, juego cristiano, República Dominicana, juego dominicano, provincias dominicanas, profetas, apóstoles, LBLA, MIPROAA, Luis David Esteban García">
+<meta name="author" content="Luis David Esteban García · MIPROAA – Ministerio Profético Ardiendo Por El Avivamiento">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://davidgarcia-star.github.io/biblixia2/">
+<link rel="icon" type="image/png" href="img/logo.png">
+<link rel="apple-touch-icon" href="img/icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="BIBLIXIA 2">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="es_DO">
+<meta property="og:site_name" content="BIBLIXIA 2">
+<meta property="og:title" content="BIBLIXIA 2 – Recorre República Dominicana con los personajes de la Biblia">
+<meta property="og:description" content="Juego bíblico 3D gratis: lleva a Moisés al Pico Duarte, a Pedro a Samaná y a Pablo hasta Pedernales en carro, avión, tren, caballo y más.">
+<meta property="og:url" content="https://davidgarcia-star.github.io/biblixia2/">
+<meta property="og:image" content="https://davidgarcia-star.github.io/biblixia2/img/og-biblixia.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"VideoGame","name":"BIBLIXIA 2","alternateName":["Biblixia 2","BIBLIXIA 2 República Dominicana"],"description":"Juego bíblico cristiano en 3D en el mapa de República Dominicana: lleva a los personajes de la Biblia a las 32 provincias.","url":"https://davidgarcia-star.github.io/biblixia2/","inLanguage":"es","genre":["Juego bíblico","Educativo","Aventura 3D","Conducción"],"gamePlatform":["Navegador web","Android","iOS","PC"],"isAccessibleForFree":true,"author":{"@type":"Person","name":"Luis David Esteban García"},"publisher":{"@type":"Organization","name":"MIPROAA – Ministerio Profético Ardiendo Por El Avivamiento","url":"https://davidgarcia-star.github.io/luisdavidgarcia/"}}
+</script>
+<link rel="stylesheet" href="css/style.css?v=20261110a">
+<script type="importmap">{"imports":{"three":"./js/vendor/three.module.js","three/addons/":"./js/vendor/addons/"}}</script>
+</head>
+<body>
+<noscript><h1>BIBLIXIA 2</h1><p>Juego bíblico 3D en el mapa de República Dominicana. Para jugar, activa JavaScript.</p></noscript>
+<canvas id="game"></canvas>
+
+<!-- Barra superior (fuera del juego) -->
+<div class="topbar" id="topbar">
+  <span class="chip chip-visitas" title="Personas que han entrado al juego">👥 <b class="js-visitas">…</b> <span class="chip-txt">visitantes</span></span>
+  <button id="btnHome" class="chip" type="button">🏠 <span class="chip-txt">Inicio</span></button>
+  <a class="chip" href="https://davidgarcia-star.github.io/luisdavidgarcia/" target="_blank" rel="noopener noreferrer">🌐 <span class="chip-txt">Sitio Web</span></a>
+  <button id="btnExit" class="chip chip-salir" type="button">🚪 <span class="chip-txt">Salir</span></button>
+  <button id="tbFull" class="chip" type="button">⛶ <span class="chip-txt">Pantalla completa</span></button>
+  <button id="tbMusic" class="chip" type="button">🎵</button>
+  <button id="tbSfx" class="chip" type="button">🔊</button>
+</div>
+
+<!-- HUD -->
+<div id="hud" class="hidden">
+  <div id="mCard" class="hpanel mcard-hud idle">
+    <div class="mh-top"><b id="mWho">Sin misión</b><span id="mTime">—</span></div>
+    <div id="mTxt" class="mh-txt"></div>
+    <div class="mh-bar"><i id="mBar"></i></div>
+    <button id="btnMissions" class="mh-btn" type="button">📋 Misiones</button>
+  </div>
+  <div class="hud-right">
+    <div class="hpanel money">💎 <b id="hMoney">0 tesoros</b></div>
+    <div class="ibs">
+      <button class="ib" id="btnPause" aria-label="Pausa">❚❚</button>
+      <button class="ib" id="btnMap" aria-label="Mapa (M)">🗺</button>
+      <button class="ib" id="btnCam" aria-label="Cámara (V)">🎥</button>
+      <button class="ib" id="btnFull" aria-label="Pantalla completa">⛶</button>
+      <button class="ib" id="btnMusic" aria-label="Música">🎵</button>
+      <button class="ib" id="btnSfx" aria-label="Efectos">🔊</button>
+    </div>
+  </div>
+  <div id="hProv" class="hpanel prov">📍</div>
+  <div class="mini-wrap"><canvas id="minimap" width="220" height="220"></canvas><span class="mini-n">N</span></div>
+  <div id="hint" class="hpanel hint hidden"><span id="hArrow">▲</span><b id="hDist"></b></div>
+  <div id="gauges" class="gauges hidden">
+    <div class="g-speed"><b id="gSpeed">0</b><small>km/h</small></div>
+    <div class="g-info">
+      <div id="gVeh" class="g-veh"></div>
+      <div id="gFuelBox" class="g-fuel"><span>⛽</span><div class="g-tank"><i id="gFuel"></i><em>E</em><em>½</em><em>F</em></div><small id="gFuelPct"></small></div>
+      <div id="gAlt" class="g-alt hidden"></div>
+    </div>
+    <button id="btnGallon" class="g-gallon hidden" type="button">⛽ Pedir galón de emergencia</button>
+  </div>
+  <div id="banner" class="banner"></div>
+  <div id="subs" class="subs"><b id="subWho"></b><span id="subTxt"></span></div>
+  <div id="toast"></div>
+  <div id="prompt"></div>
+  <div id="info" class="glass"><button id="iClose" aria-label="Cerrar">✕</button><div class="tag">★ LUGAR ESPECIAL</div><h3 id="iName"></h3><p id="iText"></p><small id="iRef"></small></div>
+</div>
+
+<!-- Controles táctiles -->
+<div id="touch" class="hidden">
+  <div id="joy"><div id="joyKnob"></div></div>
+  <div class="tbtns">
+    <button id="tTake" type="button">T<small>SUBIR / TOMAR</small></button>
+    <button id="tJump" type="button">⤒<small>SALTAR</small></button>
+    <button id="tRun" type="button">🏃<small>CORRER</small></button>
+    <button id="tBrake" type="button" class="hidden">■<small>FRENO</small></button>
+    <button id="tHonk" type="button" class="hidden">📯<small>PITO</small></button>
+    <button id="tUp" type="button" class="hidden">▲<small>SUBIR</small></button>
+    <button id="tDown" type="button" class="hidden">▼<small>BAJAR</small></button>
+  </div>
+</div>
+
+<!-- Portada -->
+<div class="screen" id="splash">
+  <div class="sp-sky" aria-hidden="true"></div>
+  <div class="sp-flag" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+  <div class="sp-wrap">
+    <header class="sp-brand">
+      <div class="sp-logo"><img src="img/logo.png" alt="Logo de MIPROAA" width="96" height="96"><span class="ring"></span></div>
+      <div>
+        <p class="sp-kicker">Juego bíblico en 3D · República Dominicana</p>
+        <h1 class="sp-title"><span>BIBLIXIA</span><em>2</em></h1>
+        <p class="sp-tag">¡Lleva a los personajes de la Biblia por las <b>32 Provincias de Dominicana</b>!</p>
+      </div>
+    </header>
+    <div class="sp-transport" aria-hidden="true"><span>🏍️</span><span>🚗</span><span>🚌</span><span>🐎</span><span>🫏</span><span>🚲</span><span>🚆</span><span>✈️</span><span>🚁</span><span>🚤</span></div>
+    <nav class="sp-menu">
+      <button class="sp-main" id="btnPlay"><span>▶ JUGAR</span><small>Recoge a un personaje y llévalo a tiempo</small></button>
+      <button class="sp-tile" id="btnMissionsMenu"><b>📋</b>Elegir misión<small>Tarjetas de viaje</small></button>
+      <button class="sp-tile" id="btnFree"><b>🚗</b>Paseo libre<small>Recorre el país</small></button>
+      <button class="sp-tile" id="btnCharacter"><b>🧑</b>Mi personaje<small>Ropa y nombre</small></button>
+      <button class="sp-tile" id="btnCollection"><b>🏆</b>Colección<small>Personajes y versículos</small></button>
+      <button class="sp-tile" id="btnHelp"><b>🎮</b>Cómo jugar<small>Controles</small></button>
+      <div class="sp-tile time-box"><b>🕒</b>Hora del día<div class="time-opts"></div></div>
+    </nav>
+    <div class="sp-links">
+      <a class="sp-link" href="https://davidgarcia-star.github.io/biblixia/" rel="noopener">✨ BIBLIXIA 1</a>
+      <a class="sp-link" href="https://davidgarcia-star.github.io/luisdavidgarcia/juego-biblico/" rel="noopener">📖 DESAFÍO BÍBLICO RD</a>
+    </div>
+    <a class="btn-paypal" href="https://www.paypal.me/luisdavidgarciaMCP?locale.x=es_XC&amp;country.x=DO" target="_blank" rel="noopener noreferrer">💛 HONRAR AL CREADOR DEL JUEGO VÍA PAYPAL</a>
+    <div class="sp-social">
+      <span>Seguir al creador</span>
+      <a href="https://www.youtube.com/@PROFETALUISDAVIDGARCIA.OFICIAL" target="_blank" rel="noopener noreferrer" aria-label="YouTube"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M21.6 7.2a2.7 2.7 0 0 0-1.9-1.9C18 4.8 12 4.8 12 4.8s-6 0-7.7.5a2.7 2.7 0 0 0-1.9 1.9C2 8.9 2 12 2 12s0 3.1.4 4.8a2.7 2.7 0 0 0 1.9 1.9c1.7.5 7.7.5 7.7.5s6 0 7.7-.5a2.7 2.7 0 0 0 1.9-1.9c.4-1.7.4-4.8.4-4.8s0-3.1-.4-4.8zM10 15.1V8.9l5.2 3.1L10 15.1z"/></svg></a>
+      <a href="https://web.facebook.com/david.estebangarcia.58/" target="_blank" rel="noopener noreferrer" aria-label="Facebook"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M13.5 21v-7.5h2.6l.4-3h-3V8.6c0-.9.3-1.5 1.5-1.5h1.6V4.4c-.3 0-1.2-.1-2.3-.1-2.3 0-3.9 1.4-3.9 4v2.2H7.8v3h2.6V21h3.1z"/></svg></a>
+      <a href="https://www.instagram.com/luis_david_garcia/" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17.3" cy="6.7" r="1.2" fill="currentColor"/></svg></a>
+      <a href="https://www.tiktok.com/@miproaa" target="_blank" rel="noopener noreferrer" aria-label="TikTok"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M16.6 3h-3.1v12.2a2.7 2.7 0 1 1-2.7-2.7c.3 0 .6 0 .8.1V9.4a5.9 5.9 0 1 0 5 5.8V9a7.4 7.4 0 0 0 4.3 1.4V7.3A4.4 4.4 0 0 1 16.6 3z"/></svg></a>
+    </div>
+    <p class="credit">Creado por <strong>Luis David Esteban García</strong> de parte de <strong>MIPROAA</strong> · Ministerio Profético Ardiendo Por El Avivamiento<br><span>Versículos: La Biblia de las Américas (LBLA) © The Lockman Foundation</span></p>
+  </div>
+  <div id="loading" class="sp-load"><div class="sp-load-bar"><i id="loadFill"></i></div><span id="loadTxt">Cargando…</span></div>
+</div>
+
+<div class="screen hidden scroll" id="help">
+  <div class="glass panel-w">
+    <h2>🎮 Cómo jugar</h2>
+    <p><b>Objetivo:</b> elige una misión, recoge al personaje bíblico (busca la columna de luz dorada) y llévalo a su destino (columna verde) antes de que se acabe el tiempo. Mientras viajan, te cuenta su historia. Al llegar te da su regalo y lees un versículo; el tiempo se detiene mientras lees.</p>
+    <p><b>A pie:</b> <kbd>W A S D</kbd> o flechas · <kbd>Shift</kbd> o <kbd>C</kbd> correr · <kbd>Espacio</kbd> saltar · <kbd>T</kbd> subir a un transporte o recoger a un personaje.</p>
+    <p><b>Carro, motor, guagua, caballo, burro, bici y lancha:</b> <kbd>W</kbd> acelerar · <kbd>S</kbd> frenar o reversa · <kbd>A D</kbd> girar · <kbd>Espacio</kbd> freno · <kbd>H</kbd> pito · <kbd>T</kbd> bajarse.</p>
+    <p><b>✈️ Avión:</b> <kbd>W</kbd> acelerar en la pista; cuando vaya rápido, <kbd>E</kbd> o <kbd>Espacio</kbd> subir y <kbd>Q</kbd> o <kbd>Shift</kbd> bajar · <kbd>A D</kbd> girar. Aterriza y detente para bajarte. <b>🚁 Helicóptero:</b> <kbd>E</kbd> subir, <kbd>Q</kbd> bajar, <kbd>W S</kbd> avanzar.</p>
+    <p><b>🚆 Tren:</b> espéralo en una estación cuando esté detenido, pulsa <kbd>T</kbd> y manéjalo con <kbd>W</kbd> / <kbd>S</kbd>.</p>
+    <p><b>⛽ Combustible:</b> los vehículos de motor gastan combustible; mira el medidor. Detente en una bomba ⛽ y pulsa <kbd>T</kbd>. Aviones y helicópteros cargan en los aeropuertos y las lanchas en los muelles. Si te quedas vacío, pide un galón de emergencia (<kbd>R</kbd>).</p>
+    <p><b>🚧 Peajes:</b> en las autopistas hay peajes: detente en la caseta para que suba la barrera.</p>
+    <p><b>💎 Tesoros bíblicos:</b> cada personaje que llevas a tiempo te regala un tesoro de su historia (las llaves del reino, la honda de David, las tablas de la Ley…). Las 🪙 monedas de fe del camino te dan un versículo y +30 segundos.</p>
+    <p><b>Teléfono:</b> la bola dorada para moverte o manejar, los botones de la derecha para acciones; arrastra la pantalla para mirar.</p>
+    <p><kbd>M</kbd> mapa · <kbd>V</kbd> cámara · <kbd>P</kbd> pausa · <kbd>F</kbd> pantalla completa. El juego se guarda solo.</p>
+  </div>
+  <button class="btn ghost" data-go="splash">Volver</button>
+</div>
+
+<div class="screen hidden scroll" id="creator">
+  <div class="glass creator-panel">
+    <div class="cp-prev"><canvas id="preview"></canvas></div>
+    <div class="cp-form">
+      <h2>Tu personaje</h2>
+      <div class="row2"><button class="opt" data-gender="m">🧑 Jugador</button><button class="opt" data-gender="f">👩 Jugadora</button></div>
+      <label for="pName">Nombre en la espalda</label>
+      <input id="pName" maxlength="10" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Ej.: DAVID">
+      <p class="phint" id="pHint"></p>
+      <label>Tono de piel</label><div class="chips" id="skins"></div>
+      <label>Vestimenta</label><div class="outfits" id="outfits"></div>
+      <label id="lblTopStyle">Estilo de camisa</label>
+      <div class="outfits" id="topRow"><button class="opt small" data-topstyle="camiseta">👕 Camiseta</button><button class="opt small" data-topstyle="camisa">👔 Camisa corta</button><button class="opt small" data-topstyle="mangalarga">👔 Manga larga</button><button class="opt small" data-topstyle="chaqueta">🧑‍💼 Chaqueta</button><button class="opt small" data-topstyle="traje">🤵 Traje</button><button class="opt small" data-topstyle="abrigo">🧥 Abrigo</button></div>
+      <label id="lblLeg" class="hidden">Falda, vestido o pantalón</label>
+      <div class="outfits hidden" id="legRow"><button class="opt small" data-leg="falda">👗 Falda</button><button class="opt small" data-leg="vestido">👗 Vestido</button><button class="opt small" data-leg="pantalon">👖 Pantalón</button></div>
+      <label>Color principal</label><div class="chips" id="tops"></div>
+      <label>Color secundario</label><div class="chips" id="bottoms"></div>
+      <div class="row2"><button class="btn" id="btnCreate">Continuar</button><button class="btn ghost" id="btnCreatorBack">Volver</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="screen hidden scroll" id="missions">
+  <h2>📋 Solicitudes de viaje</h2>
+  <p class="sub">Elige a quién llevar. El tiempo empieza cuando el personaje sube contigo.</p>
+  <div class="mlist" id="mList"></div>
+  <div class="row2 wrap"><button class="btn ghost" id="mReroll">🔄 Otras solicitudes</button><button class="btn ghost hidden" id="mCancel">✖ Cancelar misión actual</button><button class="btn ghost" id="mBack">Volver</button></div>
+</div>
+
+<div class="screen hidden scroll" id="collection">
+  <h2>🏆 Mi colección</h2>
+  <div class="row2 tabs"><button class="opt" data-tab="chars">💎 Tesoros y personajes</button><button class="opt" data-tab="verses">📖 Versículos</button></div>
+  <p class="sub" id="colCount"></p>
+  <div class="vlist" id="vlist"></div>
+  <button class="btn ghost" data-go="splash">Volver</button>
+</div>
+
+<div class="screen hidden dim" id="pause">
+  <h2>Pausa</h2>
+  <div class="menu">
+    <button class="btn" id="btnResume">▶ Continuar</button>
+    <button class="btn ghost" id="btnPauseMissions">📋 Misiones</button>
+    <div class="time-opts"></div>
+    <button class="btn ghost" id="btnPauseHome">🏠 Inicio</button>
+    <button class="btn ghost" id="btnPauseExit">🚪 Salir del juego</button>
+  </div>
+</div>
+
+<div class="screen hidden dim" id="result">
+  <div class="glass panel-w center">
+    <div class="stars" id="resStars"></div>
+    <h2 id="resTitle"></h2>
+    <p class="sub" id="resText"></p>
+    <div class="row2 wrap"><button class="btn" id="btnResNext">📋 Siguiente misión</button><button class="btn ghost" id="btnResFree">🚗 Seguir paseando</button></div>
+  </div>
+</div>
+
+<div id="bigmap" class="hidden">
+  <div class="bm-head"><b>🗺 Mapa de República Dominicana</b><span class="bm-leg">✈️ aeropuerto · 🚧 peaje · ⛽ bomba · ⚓ muelle · ★ lugar · <i class="lg-road"></i> autopista · <i class="lg-rail"></i> tren</span><div><button class="btn ghost sm" id="mapIn">＋</button><button class="btn ghost sm" id="mapOut">－</button><button class="btn ghost sm" id="mapMe">📍</button><button class="btn ghost sm" id="bigmapClose">Cerrar (M)</button></div></div>
+  <canvas id="bigmapCanvas"></canvas>
+</div>
+
+<div id="talk" class="hidden"><div class="card talk"><div class="tag" id="tKind"></div><h3 id="tName"></h3><p class="tmsg" id="tMsg"></p><p class="vref" id="tRef"></p><p class="tgift" id="tGift"></p><button class="btn" id="btnTake">Continuar</button></div></div>
+<div id="verse" class="hidden"><div class="card"><div class="tag">MONEDA DE FE · <span id="vNum"></span></div><div class="vpause">⏸ El tiempo está detenido · lee con calma</div><p class="vtext" id="vText"></p><p class="vref" id="vRef"></p><div class="vbar"><i id="vProg"></i></div><button class="btn" id="btnVerseOk" disabled>📖 Lee el versículo…</button></div></div>
+<div id="enterLoad" class="screen hidden dim"><div class="spinner"></div><p class="sub">Preparando el camino…</p></div>
+<div id="glLost" class="screen hidden"><div class="spinner"></div><p class="sub">Recuperando los gráficos… tu progreso está guardado.</p></div>
+
+<script type="module" src="js/biblixia2.min.js?v=20261110a"></script>
+</body>
+</html>

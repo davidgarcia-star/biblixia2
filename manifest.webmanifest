@@ -1,0 +1,17 @@
+{
+  "name": "BIBLIXIA 2 – Recorre República Dominicana con los personajes de la Biblia",
+  "short_name": "BIBLIXIA 2",
+  "description": "Juego bíblico 3D en el mapa de República Dominicana: lleva a profetas y apóstoles a las 32 provincias.",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#06142e",
+  "theme_color": "#06142e",
+  "categories": ["games", "education"],
+  "icons": [
+    { "src": "img/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "img/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
