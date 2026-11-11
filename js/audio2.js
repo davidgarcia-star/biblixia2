@@ -144,6 +144,8 @@ export class Sound2 extends Sound {
 
   // ---------- MENÚ: cinemático en Re menor, 76 bpm ----------
   _startMenu() {
+    // Temporada navideña: villancicos en el portal (ver navidad.js y Sound._startMenu)
+    if (window.Navidad && window.Navidad.activo) return super._startMenu();
     if (!this._pro) return super._startMenu();
     const I = this._ins();
     // Rem(add9) – Si♭maj7 – Fa – Do(sus)

@@ -28,7 +28,16 @@
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"VideoGame","name":"BIBLIXIA 2","alternateName":["Biblixia 2","BIBLIXIA 2 República Dominicana"],"description":"Juego bíblico cristiano en 3D en el mapa de República Dominicana: lleva a los personajes de la Biblia a las 32 provincias.","url":"https://davidgarcia-star.github.io/biblixia2/","inLanguage":"es","genre":["Juego bíblico","Educativo","Aventura 3D","Conducción"],"gamePlatform":["Navegador web","Android","iOS","PC"],"isAccessibleForFree":true,"author":{"@type":"Person","name":"Luis David Esteban García"},"publisher":{"@type":"Organization","name":"MIPROAA – Ministerio Profético Ardiendo Por El Avivamiento","url":"https://davidgarcia-star.github.io/luisdavidgarcia/"}}
 </script>
-<link rel="stylesheet" href="css/style.css?v=20261110c">
+<link rel="stylesheet" href="css/style.css?v=20261111a">
+<script>
+/* Navidad: adornos y villancicos del 1 de noviembre al 31 de enero */
+window.NAVIDAD_CFG = {
+  portal: '#splash', portalDentro: '.sp-wrap', portalAntes: '.sp-menu',
+  logo: '#splash .sp-logo',
+  jugando: function () { return document.body.classList.contains('ingame'); }
+};
+</script>
+<script src="js/navidad.js?v=1"></script>
 <script type="importmap">{"imports":{"three":"./js/vendor/three.module.js","three/addons/":"./js/vendor/addons/"}}</script>
 </head>
 <body>
@@ -230,6 +239,47 @@
 <div id="enterLoad" class="screen hidden dim"><div class="spinner"></div><p class="sub">Preparando el camino…</p></div>
 <div id="glLost" class="screen hidden"><div class="spinner"></div><p class="sub">Recuperando los gráficos… tu progreso está guardado.</p></div>
 
-<script type="module" src="js/biblixia2.min.js?v=20261110f"></script>
+<!-- Bloqueo: BIBLIXIA 2 se abre al completar los 5 niveles de BIBLIXIA 1 -->
+<div id="b2Lock" class="screen hidden" role="dialog" aria-labelledby="b2LockT">
+  <div class="card b2-lock">
+    <div class="sp-logo b2-logo"><img src="img/logo.png" alt="Logo de MIPROAA" width="84" height="84"></div>
+    <div class="tag">BIBLIXIA 2 · República Dominicana</div>
+    <h2 id="b2LockT">🔒 Juego bloqueado</h2>
+    <p>Para jugar <b>BIBLIXIA 2</b> primero debes completar <b>todos los niveles de BIBLIXIA 1</b>.</p>
+    <ul class="b2-niveles" id="b2Niveles"></ul>
+    <p class="b2-prog" id="b2Prog"></p>
+    <a class="btn" href="https://davidgarcia-star.github.io/biblixia/" rel="noopener">▶ Jugar BIBLIXIA 1</a>
+    <div class="b2-links">
+      <a class="btn ghost sm" href="https://davidgarcia-star.github.io/luisdavidgarcia/juego-biblico/" rel="noopener">📖 Desafío Bíblico RD</a>
+      <a class="btn ghost sm" href="https://davidgarcia-star.github.io/luisdavidgarcia/" rel="noopener">🌐 Sitio Web</a>
+    </div>
+    <p class="vref">«Bienaventurado el hombre que persevera bajo la prueba.» — Santiago 1:12</p>
+  </div>
+</div>
+<script>
+(function () {
+  var NIVELES = ['Básico', 'Intermedio', 'Avanzado', 'Experto', 'Master'], estrellas = [];
+  // BIBLIXIA 1 y 2 están en el mismo sitio (davidgarcia-star.github.io), así que comparten el progreso guardado
+  try { var s = JSON.parse(localStorage.getItem('monedasDeFe3D_v1')); if (s && s.stars) estrellas = s.stars; } catch (e) {}
+  var hechos = NIVELES.filter(function (n, i) { return estrellas[i] > 0; }).length;
+  var abierto = hechos >= NIVELES.length;
+  try { if (new URLSearchParams(location.search).get('probar') === 'luisdavid') abierto = true; } catch (e) {}
+  if (abierto) {
+    var m = document.createElement('script'); m.type = 'module'; m.src = 'js/biblixia2.min.js?v=20261111b';
+    document.body.appendChild(m);
+    return;
+  }
+  var ul = document.getElementById('b2Niveles');
+  NIVELES.forEach(function (n, i) {
+    var li = document.createElement('li'), ok = estrellas[i] > 0;
+    li.className = ok ? 'ok' : '';
+    li.textContent = (ok ? '✅ ' : '🔒 ') + 'Nivel ' + (i + 1) + ' · ' + n;
+    ul.appendChild(li);
+  });
+  document.getElementById('b2Prog').textContent = 'Llevas ' + hechos + ' de ' + NIVELES.length + ' niveles completados.';
+  ['splash', 'loading', 'topbar'].forEach(function (id) { var e = document.getElementById(id); if (e) e.classList.add('hidden'); });
+  document.getElementById('b2Lock').classList.remove('hidden');
+})();
+</script>
 </body>
 </html>
