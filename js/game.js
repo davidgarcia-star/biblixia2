@@ -4,13 +4,14 @@ import { VERSES } from './verses.js';
 import { createHuman, animateHuman } from './human.js';
 import { CHARACTERS, createCharacter, nameSprite } from './characters.js';
 import { Sound2 } from './audio2.js';
-import { PROVINCES, PROV, AIRPORTS, PLACES, MISSIONS, BOUNDS, toXZ, KM } from './rd-data.js';
+import { PROVINCES, PROV, AIRPORTS, PLACES, MISSIONS, BOUNDS, toXZ, KM, ZONES } from './rd-data.js';
 import { buildMasks, initFlats, buildLines, buildFarMesh, buildWater, Chunks, linesInChunk, riversInChunk, heightAt, groundAt as groundAt0, H0, inHaiti, typeAt, LINES, linePos, nearRoad, CH } from './terrain.js';
 import { buildTown, buildAirport, buildPorts, buildStations, buildTolls, highwayPumps, streetSigns, buildPlace, decorateChunk, TOWNS, PUMPS, TOLL_LIST, facadeMat, NIGHT_MATS, label, DETAIL, padAt, FACADES } from './towns.js';
 // suelo = terreno, carretera o superficie construida (plaza, andén, pista, muelle): así los pies no se entierran
 const groundAt = (x, z) => { const g = groundAt0(x, z), p = padAt(x, z); return p > g.y - .02 ? { y: p, road: 'pad', main: false } : g; };
 import { makeVehicle, animateVehicle, KINDS, TRAFFIC_COLORS } from './vehicles.js';
 import { buildBaseMap, drawMap } from './maps.js';
+import { findRoute, closestOnRoute } from './route.js';
 import { initGente, updateGente, CITY_LOOPS } from './gente.js';
 import { bakeInPlace } from './human.js';
 import { makeBox, resolve as resolveHit } from './collide.js';
@@ -741,11 +742,25 @@ function marks() {
   if (M) { if (M.phase === 'pick') out.push({ x: M.pick.x, z: M.pick.z, color: '#ffd34d', icon: '🙏' }); else out.push({ x: M.dest.x, z: M.dest.z, color: '#3ccf6e', icon: '🏁' }); }
   return out;
 }
+// línea de la ruta en el mapa: por las carreteras (en avión o helicóptero, en línea recta)
+const R = { key: '', pts: null, idx: 0, t: 0 };
+function routeNow() {
+  const tgt = M ? (M.phase === 'pick' ? M.pick : M.dest) : null;
+  if (!tgt) { R.key = ''; R.pts = null; return null; }
+  const v = P.veh, x = v ? v.x : P.pos.x, z = v ? v.z : P.pos.z;
+  if (v && v.K.air) return { pts: [[x, z], [tgt.x, tgt.z]], straight: true, color: M.phase === 'pick' ? '#ffd34d' : '#5fe08a' };
+  const key = M.phase + ':' + Math.round(tgt.x) + ':' + Math.round(tgt.z), now = performance.now();
+  let off = 0;
+  if (R.pts && R.key === key) { const [i, d] = closestOnRoute(R.pts, x, z, Math.max(0, R.idx - 3)); R.idx = i; off = d; }
+  if (R.key !== key || !R.pts || (off > 700 && now - R.t > 2500)) { R.pts = findRoute(x, z, tgt.x, tgt.z); R.key = key; R.idx = 0; R.t = now; }
+  return { pts: [[x, z], ...R.pts.slice(R.idx + 1)], color: M.phase === 'pick' ? '#ffd34d' : '#39d4ff' };
+}
+function routeOpts() { const r = routeNow(); return r ? { route: r.pts, routeColor: r.color, routeStraight: !!r.straight } : {}; }
 function drawMini(dt) {
   if ((miniT -= dt) > 0) return; miniT = .15;
   const v = P.veh, x = v ? v.x : P.pos.x, z = v ? v.z : P.pos.z, yaw = v ? (v.kind === 'tren' ? v.obj.userData.cars[0].rotation.y : v.yaw) : P.heading;
   const zoom = v && v.K.air ? 60 : v ? 22 : 8;
-  drawMap(mctx, mini.width, mini.height, x, z, zoom, { player: { x, z, yaw }, marks: marks() });
+  drawMap(mctx, mini.width, mini.height, x, z, zoom, { player: { x, z, yaw }, marks: marks(), ...routeOpts() });
 }
 let mapView = null;
 function openMap() { if (state !== 'play') return; state = 'map'; $('bigmap').classList.remove('hidden'); const v = P.veh; mapView = { x: v ? v.x : P.pos.x, z: v ? v.z : P.pos.z, upp: 230 }; drawBig(); }
@@ -754,7 +769,7 @@ function drawBig() {
   const c = $('bigmapCanvas'), r = c.getBoundingClientRect(); c.width = r.width * Math.min(2, devicePixelRatio); c.height = r.height * Math.min(2, devicePixelRatio);
   const ctx = c.getContext('2d'), k = c.width / r.width; ctx.setTransform(1, 0, 0, 1, 0, 0);
   const v = P.veh, x = v ? v.x : P.pos.x, z = v ? v.z : P.pos.z, yaw = v ? v.yaw : P.heading;
-  ctx.scale(k, k); drawMap(ctx, r.width, r.height, mapView.x, mapView.z, mapView.upp, { big: true, player: { x, z, yaw }, marks: marks(), ports: world.ports });
+  ctx.scale(k, k); drawMap(ctx, r.width, r.height, mapView.x, mapView.z, mapView.upp, { big: true, player: { x, z, yaw }, marks: marks(), ports: world.ports, ...routeOpts() });
 }
 (() => { const c = $('bigmapCanvas'); let drag = null;
   c.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY }; c.setPointerCapture(e.pointerId); });
@@ -973,13 +988,13 @@ let missionProv = null;
 function openProvinces() {
   if (state === 'play') state = 'pause';
   const box = $('pList'); box.innerHTML = '';
-  const regions = [...new Set(PROVINCES.map(p => p.region))];
-  for (const r of regions) {
-    const h = document.createElement('h3'); h.className = 'preg'; h.textContent = 'Región ' + r; box.appendChild(h);
+  // provincias organizadas por Norte, Sur, Este y Oeste
+  for (const [r, ic] of ZONES) {
+    const h = document.createElement('h3'); h.className = 'preg'; h.textContent = `${ic} ${r}`; box.appendChild(h);
     const grid = document.createElement('div'); grid.className = 'pgrid'; box.appendChild(grid);
-    for (const p of PROVINCES.filter(q => q.region === r).sort((a, b) => a.name.localeCompare(b.name, 'es'))) {
+    for (const p of PROVINCES.filter(q => q.zone === r).sort((a, b) => a.name.localeCompare(b.name, 'es'))) {
       const n = offersFor(p).length, b = document.createElement('button'); b.className = 'pcard';
-      b.innerHTML = `<b>${p.name}</b><small>${p.cap}</small><span>🙏 ${n} personajes</span>`;
+      b.innerHTML = `<b>${p.name}</b><small>${p.cap} · Región ${p.region}</small><span>🙏 ${n} personajes</span>`;
       b.onclick = () => { sound.click(); openMissions(p); };
       grid.appendChild(b);
     }

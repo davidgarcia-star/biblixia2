@@ -71,6 +71,14 @@ export function drawMap(ctx, w, h, cx, cz, upp, o = {}) {
   if (o.layers?.gas !== false && (big || upp < 60)) for (const p of PUMPS) icon('⛽', p.x, p.z, big ? 11 : 10);
   if (o.layers?.places !== false && big) for (const p of PLACES) if (p.x !== undefined) icon('★', p.x, p.z, 12);
   if (o.ports && big) for (const p of o.ports) icon('⚓', p.x, p.z, 11);
+  // ruta (GPS) hasta el personaje o el destino
+  if (o.route && o.route.length > 1) {
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    const trace = () => { ctx.beginPath(); o.route.forEach(([x, z], i) => { const [a, b] = P(x, z); i ? ctx.lineTo(a, b) : ctx.moveTo(a, b); }); };
+    trace(); ctx.strokeStyle = 'rgba(6,20,46,.85)'; ctx.lineWidth = big ? 8 : 7; ctx.stroke();
+    trace(); ctx.strokeStyle = o.routeColor || '#39d4ff'; ctx.lineWidth = big ? 4.5 : 4; ctx.stroke();
+    if (o.routeStraight) { trace(); ctx.setLineDash([2, 9]); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); ctx.setLineDash([]); }
+  }
   // objetivos
   for (const m of o.marks || []) {
     const [x, y] = P(m.x, m.z), inside = x > 6 && y > 6 && x < w - 6 && y < h - 6;

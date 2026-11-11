@@ -94,6 +94,10 @@ export const PROVINCES = [
   { id: 'srodriguez', name: 'Santiago Rodríguez', cap: 'San Ignacio de Sabaneta', lon: -71.341, lat: 19.477, region: 'Cibao Noroeste' },
   { id: 'valverde', name: 'Valverde', cap: 'Mao', lon: -71.078, lat: 19.552, region: 'Cibao Noroeste' },
 ];
+// Zonas del país: Norte (Cibao), Sur, Este y Oeste
+export const ZONES = [['Norte', '⬆️'], ['Sur', '⬇️'], ['Este', '➡️'], ['Oeste', '⬅️']];
+const ZONE_OF = { 'Cibao Norte': 'Norte', 'Cibao Nordeste': 'Norte', 'Cibao Sur': 'Norte', 'Cibao Noroeste': 'Oeste', 'El Valle': 'Oeste', 'Ozama': 'Sur', 'Valdesia': 'Sur', 'Enriquillo': 'Sur', 'Higüamo': 'Este', 'Yuma': 'Este' };
+for (const p of PROVINCES) p.zone = ZONE_OF[p.region];
 export const PROV = Object.fromEntries(PROVINCES.map(p => [p.id, p]));
 
 /* ---------- Carreteras principales (provincias y puntos intermedios) ---------- */
