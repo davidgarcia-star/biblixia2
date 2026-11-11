@@ -33,7 +33,11 @@ const clamp = THREE.MathUtils.clamp, lerp = THREE.MathUtils.lerp;
 /* ---------- Render ---------- */
 const canvas = $('game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: !isTouch || devicePixelRatio < 2, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, isTouch ? 1.25 : 1.75));
+// calidad automática: si el juego va lento, baja la resolución y luego quita las sombras
+const QBASE = Math.min(devicePixelRatio, isTouch ? 1 : 1.5);
+const Q = { lvl: 0, frames: 0, t: 0, warm: 3 };
+try { Q.lvl = Math.min(3, +localStorage.getItem('biblixia2_q') || 0); } catch (e) {}
+renderer.setPixelRatio(QBASE);
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = isTouch ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -52,6 +56,23 @@ const sun = new THREE.DirectionalLight(0xfff1dc, 3); sun.castShadow = true;
 sun.shadow.mapSize.set(isTouch ? 1024 : 2048, isTouch ? 1024 : 2048);
 Object.assign(sun.shadow.camera, { left: -70, right: 70, top: 70, bottom: -70, near: 10, far: 900 }); sun.shadow.bias = -.0006; sun.shadow.normalBias = .04;
 scene.add(sun, sun.target);
+function applyQuality() {
+  const pr = [1, .85, .75, .62][Q.lvl];
+  renderer.setPixelRatio(Math.max(.5, QBASE * pr)); renderer.setSize(innerWidth, innerHeight);
+  const sm = Q.lvl >= 1 ? 512 : isTouch ? 1024 : 2048;
+  if (sun.shadow.mapSize.x !== sm) { sun.shadow.mapSize.set(sm, sm); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
+  sun.castShadow = Q.lvl < 2;
+  try { localStorage.setItem('biblixia2_q', Q.lvl); } catch (e) {}
+}
+applyQuality();
+function watchFps(dt) {
+  if ((Q.warm -= dt) > 0) return; // esperar a que cargue la zona
+  Q.frames++; Q.t += dt;
+  if (Q.t < 3) return;
+  const fps = Q.frames / Q.t; Q.frames = 0; Q.t = 0;
+  if (fps < 40 && Q.lvl < 3) { Q.lvl++; Q.dropped = true; applyQuality(); Q.warm = 2; }
+  else if (fps > 58 && Q.lvl > 0 && !Q.dropped) { Q.lvl--; applyQuality(); Q.warm = 2; } // el equipo va sobrado: subir la calidad otra vez
+}
 scene.fog = new THREE.Fog(0xc4d6ea, 3000, 26000);
 const stars = (() => { const n = 2500, p = new Float32Array(n * 3); for (let i = 0; i < n; i++) { const th = Math.random() * 6.283, ph = Math.acos(1 - Math.random() * .95); p.set([Math.sin(ph) * Math.cos(th) * 50000, Math.cos(ph) * 50000, Math.sin(ph) * Math.sin(th) * 50000], i * 3); } const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(p, 3)); const s = new THREE.Points(g, new THREE.PointsMaterial({ size: 2, sizeAttenuation: false, color: 0xe8eeff, fog: false })); s.visible = false; scene.add(s); return s; })();
 const moon = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); const gr = g.createRadialGradient(64, 64, 10, 64, 64, 64); gr.addColorStop(0, '#fff'); gr.addColorStop(.4, '#e8eefc'); gr.addColorStop(.42, 'rgba(200,215,255,.35)'); gr.addColorStop(1, 'rgba(180,200,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, fog: false, depthWrite: false })); s.scale.set(5000, 5000, 1); s.visible = false; scene.add(s); return s; })();
@@ -915,9 +936,10 @@ function loop() {
   requestAnimationFrame(loop);
   const now = performance.now(), dt = Math.min(.05, (now - lastNow) / 1000); lastNow = now; clockT += dt;
   if (!world) return;
-  if (state === 'play') { step(dt); updateCamera(dt); updateHUD(dt); drawMini(dt); }
+  if (state === 'play') { step(dt); updateCamera(dt); updateHUD(dt); drawMini(dt); watchFps((now - (loop.prev || now)) / 1000); }
   else if (state === 'verse') { verseTimer -= dt; $('vProg').style.width = (clamp(1 - verseTimer / verseTimer0, 0, 1) * 100) + '%'; if (verseTimer <= 0 && $('btnVerseOk').disabled) { $('btnVerseOk').disabled = false; $('btnVerseOk').textContent = '✅ ¡Amén! Continuar'; $('verse').classList.add('ready'); } }
   else if (state === 'menu' || (state === 'loading2' && !entering)) menuFly(dt);
+  loop.prev = now;
   if (state !== 'play' && state !== 'map' && state !== 'talk' && state !== 'verse') sound.engine && P.veh && sound.engineOff();
   // el sol y la sombra siguen al jugador; el agua y el cielo también
   const c = camera.position, focus = state === 'play' || state === 'talk' || state === 'verse' || state === 'map' ? P.pos : camLook;
