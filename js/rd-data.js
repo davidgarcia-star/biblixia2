@@ -69,7 +69,7 @@ export const PROVINCES = [
   { id: 'dajabon', name: 'Dajabón', cap: 'Dajabón', lon: -71.708, lat: 19.549, region: 'Cibao Noroeste' },
   { id: 'duarte', name: 'Duarte', cap: 'San Francisco de Macorís', lon: -70.253, lat: 19.301, big: 1, region: 'Cibao Nordeste' },
   { id: 'eliaspina', name: 'Elías Piña', cap: 'Comendador', lon: -71.705, lat: 18.877, region: 'El Valle' },
-  { id: 'elseibo', name: 'El Seibo', cap: 'Santa Cruz de El Seibo', lon: -69.039, lat: 18.766, region: 'Higüamo' },
+  { id: 'elseibo', name: 'El Seibo', cap: 'Santa Cruz de El Seibo', lon: -69.039, lat: 18.766, region: 'Yuma' },
   { id: 'espaillat', name: 'Espaillat', cap: 'Moca', lon: -70.525, lat: 19.394, region: 'Cibao Norte' },
   { id: 'hatomayor', name: 'Hato Mayor', cap: 'Hato Mayor del Rey', lon: -69.257, lat: 18.763, region: 'Higüamo' },
   { id: 'hmirabal', name: 'Hermanas Mirabal', cap: 'Salcedo', lon: -70.417, lat: 19.377, region: 'Cibao Nordeste' },

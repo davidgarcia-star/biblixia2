@@ -994,7 +994,7 @@ function openProvinces() {
     const grid = document.createElement('div'); grid.className = 'pgrid'; box.appendChild(grid);
     for (const p of PROVINCES.filter(q => q.zone === r).sort((a, b) => a.name.localeCompare(b.name, 'es'))) {
       const n = offersFor(p).length, b = document.createElement('button'); b.className = 'pcard';
-      b.innerHTML = `<b>${p.name}</b><small>${p.cap} · Región ${p.region}</small><span>🙏 ${n} personajes</span>`;
+      b.innerHTML = `<b>${p.name}</b><small>${p.cap}</small><span>🙏 ${n} personajes</span>`;
       b.onclick = () => { sound.click(); openMissions(p); };
       grid.appendChild(b);
     }
