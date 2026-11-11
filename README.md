@@ -61,7 +61,7 @@ Necesita un servidor web. Con GitHub Pages: *Settings → Pages → rama `main`,
 - `js/human.js`, `js/characters.js` – personas y personajes bíblicos
 - `js/collide.js` – choques con edificios, objetos y vehículos
 - `js/maps.js` – minimapa y mapa completo
-- `js/audio.js`, `js/audio2.js` – música (con ritmo de merengue al jugar) y sonidos
+- `js/audio.js`, `js/audio2.js` – música ejecutiva y cinemática (una pista para el menú y otra al jugar, con mezcla profesional) y sonidos
 - `js/verses.js` – versículos LBLA
 - `js/vendor/` – three.js (licencia MIT)
 
