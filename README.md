@@ -1,5 +1,9 @@
 # BIBLIXIA 2 – ¡Recorre República Dominicana con los personajes de la Biblia!
 
+## ▶ [Jugar BIBLIXIA 2 ahora](https://davidgarcia-star.github.io/biblixia2/)
+
+Para jugar, abre: https://davidgarcia-star.github.io/biblixia2/
+
 Juego bíblico cristiano en 3D, gratis, en el navegador (computadora y celular). No hay niveles: eres el transportista de Dios. Recoges a profetas, apóstoles y personajes de la Biblia y los llevas a su destino en las **32 provincias de República Dominicana** antes de que se acabe el tiempo. Mientras viajan, cada personaje cuenta su historia en voz alta: con voz de hombre si es hombre y con voz de mujer si es mujer.
 
 Creado por **Luis David Esteban García** de parte de **MIPROAA** – Ministerio Profético Ardiendo Por El Avivamiento.
