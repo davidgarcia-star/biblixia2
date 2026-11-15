@@ -74,3 +74,9 @@ Después de cambiar algo en `js/`, ejecuta `bun build-bun.mjs` para regenerar `j
 Las citas bíblicas son de La Biblia de las Américas® (LBLA), © The Lockman Foundation. Usadas con permiso.
 
 © Luis David Esteban García · MIPROAA. Todos los derechos reservados.
+
+## 📱 Redes sociales
+- YouTube: https://www.youtube.com/@PROFETALUISDAVIDGARCIA.OFICIAL
+- Facebook: https://www.facebook.com/david.estebangarcia.58/
+- Instagram: https://www.instagram.com/luis_david_garcia/
+- TikTok: https://www.tiktok.com/@miproaa
