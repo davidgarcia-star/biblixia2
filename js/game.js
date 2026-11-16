@@ -883,7 +883,7 @@ function updateServices(dt) {
       const add = Math.min(1 - v.fuel, dt * .2);
       if (add <= 0) { toast('⛽ ¡Tanque lleno! Buen viaje', '#7ef0a4'); sound.bell(); fueling = null; persist(); }
       else { v.fuel += add; v.lowWarn = false; if (Math.random() < dt * 8) sound.fuelTick(); $('btnGallon').classList.add('hidden'); }
-      prompt(`⛽ Echando combustible… ${Math.round(v.fuel * 100)}%`);
+      prompt(`⛽ Echando combustible… ${Math.round(v.fuel * 100)} %`);
       return;
     }
   }

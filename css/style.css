@@ -254,3 +254,7 @@ body.driving #prompt { bottom: 128px; }
 .b2-prog { font-weight: 800; color: var(--oro); }
 .b2-lock .btn { display: inline-block; text-decoration: none; margin-top: 8px; }
 .b2-links { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 10px; }
+
+/* Enlace a la política de privacidad en los créditos */
+.credit-link { color: inherit; opacity: .85; text-decoration: underline; text-underline-offset: 2px; }
+.credit-link:hover { opacity: 1; }

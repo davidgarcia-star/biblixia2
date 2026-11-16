@@ -3,15 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' data: blob: https://abacus.jasoncameron.dev https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="theme-color" content="#06142e">
-<title>BIBLIXIA 2 – Juego bíblico 3D en República Dominicana | Lleva a los personajes de la Biblia</title>
-<meta name="description" content="BIBLIXIA 2 es un juego bíblico cristiano en 3D, gratis, en el mapa de República Dominicana: lleva a profetas, apóstoles y personajes de la Biblia a las 32 provincias en moto, carro, guagua, caballo, burro, bicicleta, tren, avión, helicóptero o lancha. Versículos LBLA. Creado por Luis David Esteban García · MIPROAA.">
+<meta name="color-scheme" content="dark">
+<title>BIBLIXIA 2 – Juego bíblico 3D en República Dominicana | MIPROAA</title>
+<meta name="description" content="Juego bíblico 3D gratis en el mapa de República Dominicana: lleva a profetas y apóstoles a las 32 provincias en carro, guagua, tren, avión y más. Biblia LBLA.">
 <meta name="keywords" content="BIBLIXIA 2, Biblixia 2, Biblixia, juego bíblico, juego biblico 3D, juego cristiano, República Dominicana, juego dominicano, provincias dominicanas, profetas, apóstoles, LBLA, MIPROAA, Luis David Esteban García">
-<meta name="author" content="Luis David Esteban García · MIPROAA – Ministerio Profético Ardiendo Por El Avivamiento">
+<meta name="author" content="Luis David Esteban García · MIPROAA – Ministerio Profético Ardiendo por el Avivamiento">
 <meta name="robots" content="index, follow, max-image-preview:large">
 <link rel="canonical" href="https://davidgarcia-star.github.io/biblixia2/">
-<link rel="icon" type="image/png" href="img/logo.png">
+<link rel="icon" href="img/favicon.ico" sizes="48x48">
+<link rel="icon" type="image/png" href="img/favicon-48.png" sizes="48x48">
+<link rel="icon" type="image/png" href="img/favicon-96.png" sizes="96x96">
+<link rel="icon" type="image/png" href="img/favicon-192.png" sizes="192x192">
 <link rel="apple-touch-icon" href="img/icon-192.png">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -24,11 +29,18 @@
 <meta property="og:description" content="Juego bíblico 3D gratis: lleva a Moisés al Pico Duarte, a Pedro a Samaná y a Pablo hasta Pedernales en carro, avión, tren, caballo y más.">
 <meta property="og:url" content="https://davidgarcia-star.github.io/biblixia2/">
 <meta property="og:image" content="https://davidgarcia-star.github.io/biblixia2/img/og-biblixia2.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="BIBLIXIA 2 – Juego bíblico 3D en el mapa de República Dominicana">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="BIBLIXIA 2 – Recorre República Dominicana con los personajes de la Biblia">
+<meta name="twitter:description" content="Juego bíblico 3D gratis: lleva a Moisés al Pico Duarte, a Pedro a Samaná y a Pablo hasta Pedernales en carro, avión, tren, caballo y más.">
+<meta name="twitter:image" content="https://davidgarcia-star.github.io/biblixia2/img/og-biblixia2.jpg">
+<meta name="twitter:image:alt" content="BIBLIXIA 2 – Juego bíblico 3D en el mapa de República Dominicana">
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"VideoGame","name":"BIBLIXIA 2","alternateName":["Biblixia 2","BIBLIXIA 2 República Dominicana"],"description":"Juego bíblico cristiano en 3D en el mapa de República Dominicana: lleva a los personajes de la Biblia a las 32 provincias.","url":"https://davidgarcia-star.github.io/biblixia2/","inLanguage":"es","genre":["Juego bíblico","Educativo","Aventura 3D","Conducción"],"gamePlatform":["Navegador web","Android","iOS","PC"],"isAccessibleForFree":true,"author":{"@type":"Person","name":"Luis David Esteban García"},"publisher":{"@type":"Organization","name":"MIPROAA – Ministerio Profético Ardiendo Por El Avivamiento","url":"https://davidgarcia-star.github.io/luisdavidgarcia/"}}
+{"@context":"https://schema.org","@type":"VideoGame","name":"BIBLIXIA 2","alternateName":["Biblixia 2","BIBLIXIA 2 República Dominicana"],"description":"Juego bíblico cristiano en 3D en el mapa de República Dominicana: lleva a los personajes de la Biblia a las 32 provincias.","url":"https://davidgarcia-star.github.io/biblixia2/","inLanguage":"es","genre":["Juego bíblico","Educativo","Aventura 3D","Conducción"],"gamePlatform":["Navegador web","Android","iOS","PC"],"isAccessibleForFree":true,"author":{"@type":"Person","name":"Luis David Esteban García"},"publisher":{"@type":"Organization","name":"MIPROAA – Ministerio Profético Ardiendo por el Avivamiento","url":"https://davidgarcia-star.github.io/luisdavidgarcia/"}}
 </script>
-<link rel="stylesheet" href="css/style.css?v=20261111a">
+<link rel="stylesheet" href="css/style.css?v=20261115b">
 <script>
 /* Navidad: adornos y villancicos del 1 de noviembre al 9 de enero */
 window.NAVIDAD_CFG = {
@@ -51,8 +63,8 @@ window.NAVIDAD_CFG = {
   <a class="chip" href="https://davidgarcia-star.github.io/luisdavidgarcia/" target="_blank" rel="noopener noreferrer">🌐 <span class="chip-txt">Sitio Web</span></a>
   <button id="btnExit" class="chip chip-salir" type="button">🚪 <span class="chip-txt">Salir</span></button>
   <button id="tbFull" class="chip" type="button">⛶ <span class="chip-txt">Pantalla completa</span></button>
-  <button id="tbMusic" class="chip" type="button">🎵</button>
-  <button id="tbSfx" class="chip" type="button">🔊</button>
+  <button id="tbMusic" class="chip" type="button" aria-label="Música" title="Música">🎵</button>
+  <button id="tbSfx" class="chip" type="button" aria-label="Efectos de sonido" title="Efectos de sonido">🔊</button>
   <button id="tbGfx" class="chip" type="button" title="Calidad de gráficos: Liviano es para celulares con menos capacidad">⚙️ Auto</button>
 </div>
 
@@ -144,7 +156,7 @@ window.NAVIDAD_CFG = {
       <a href="https://www.instagram.com/luis_david_garcia/" target="_blank" rel="me noopener noreferrer" aria-label="Instagram"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17.3" cy="6.7" r="1.2" fill="currentColor"/></svg></a>
       <a href="https://www.tiktok.com/@miproaa" target="_blank" rel="me noopener noreferrer" aria-label="TikTok"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M16.6 3h-3.1v12.2a2.7 2.7 0 1 1-2.7-2.7c.3 0 .6 0 .8.1V9.4a5.9 5.9 0 1 0 5 5.8V9a7.4 7.4 0 0 0 4.3 1.4V7.3A4.4 4.4 0 0 1 16.6 3z"/></svg></a>
     </div>
-    <p class="credit">Creado por <strong>Luis David Esteban García</strong> de parte de <strong>MIPROAA</strong> · Ministerio Profético Ardiendo Por El Avivamiento<br><span>Versículos: La Biblia de las Américas (LBLA) © The Lockman Foundation</span></p>
+    <p class="credit">Creado por <strong>Luis David Esteban García</strong> de parte de <strong>MIPROAA</strong> · Ministerio Profético Ardiendo por el Avivamiento<br><span>Versículos: La Biblia de las Américas (LBLA) © The Lockman Foundation</span><br><a class="credit-link" href="https://davidgarcia-star.github.io/luisdavidgarcia/privacidad.html" target="_blank" rel="noopener">Política de privacidad</a></p>
   </div>
   <div id="loading" class="sp-load"><div class="sp-load-bar"><i id="loadFill"></i></div><span id="loadTxt">Cargando…</span></div>
 </div>
@@ -261,14 +273,14 @@ window.NAVIDAD_CFG = {
 <script src="js/cuenta.js?v=1" data-pantallas="#splash,#b2Lock"></script>
 <script>
 (function () {
-  var NIVELES = ['Básico', 'Intermedio', 'Avanzado', 'Experto', 'Master'], estrellas = [];
+  var NIVELES = ['Básico', 'Intermedio', 'Avanzado', 'Experto', 'Máster'], estrellas = [];
   // BIBLIXIA 1 y 2 están en el mismo sitio (davidgarcia-star.github.io), así que comparten el progreso guardado
   try { var s = JSON.parse(localStorage.getItem('monedasDeFe3D_v1')); if (s && s.stars) estrellas = s.stars; } catch (e) {}
   var hechos = NIVELES.filter(function (n, i) { return estrellas[i] > 0; }).length;
   var abierto = hechos >= NIVELES.length;
   try { if (new URLSearchParams(location.search).get('probar') === 'luisdavid') abierto = true; } catch (e) {}
   if (abierto) {
-    var m = document.createElement('script'); m.type = 'module'; m.src = 'js/biblixia2.min.js?v=20261115m';
+    var m = document.createElement('script'); m.type = 'module'; m.src = 'js/biblixia2.min.js?v=20261115n';
     document.body.appendChild(m);
     return;
   }
