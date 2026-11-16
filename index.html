@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' data: blob: https://abacus.jasoncameron.dev; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' data: blob: https://abacus.jasoncameron.dev https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="theme-color" content="#06142e">
 <title>BIBLIXIA 2 – Juego bíblico 3D en República Dominicana | Lleva a los personajes de la Biblia</title>
@@ -250,6 +250,7 @@ window.NAVIDAD_CFG = {
     <ul class="b2-niveles" id="b2Niveles"></ul>
     <p class="b2-prog" id="b2Prog"></p>
     <a class="btn" href="https://davidgarcia-star.github.io/biblixia/" rel="noopener">▶ Jugar BIBLIXIA 1</a>
+    <p class="b2-prog" data-cuenta-abrir hidden style="cursor:pointer;text-decoration:underline">¿Ya completaste BIBLIXIA 1 en otro teléfono o computadora? Toca aquí y entra con tu usuario.</p>
     <div class="b2-links">
       <a class="btn ghost sm" href="https://davidgarcia-star.github.io/luisdavidgarcia/juego-biblico/" rel="noopener">📖 Desafío Bíblico RD</a>
       <a class="btn ghost sm" href="https://davidgarcia-star.github.io/luisdavidgarcia/" rel="noopener">🌐 Sitio Web</a>
@@ -257,6 +258,7 @@ window.NAVIDAD_CFG = {
     <p class="vref">«Bienaventurado el hombre que persevera bajo la prueba.» — Santiago 1:12</p>
   </div>
 </div>
+<script src="js/cuenta.js?v=1" data-pantallas="#splash,#b2Lock"></script>
 <script>
 (function () {
   var NIVELES = ['Básico', 'Intermedio', 'Avanzado', 'Experto', 'Master'], estrellas = [];
