@@ -258,3 +258,9 @@ body.driving #prompt { bottom: 128px; }
 /* Enlace a la política de privacidad en los créditos */
 .credit-link { color: inherit; opacity: .85; text-decoration: underline; text-underline-offset: 2px; }
 .credit-link:hover { opacity: 1; }
+/* Ajuste a la pantalla (también en pantalla completa): ningún botón queda cortado ni tapado por la barra */
+.screen { overflow-y: auto; overflow-x: hidden; justify-content: safe center; padding-top: max(24px, calc(var(--tb-h, 0px) + 14px)); padding-bottom: max(24px, env(safe-area-inset-bottom)); scrollbar-width: thin; scrollbar-color: rgba(245,197,66,.65) transparent; }
+.screen.scroll { justify-content: flex-start; padding-top: calc(var(--tb-h, 0px) + 24px); }
+#splash { justify-content: safe center; padding-top: calc(var(--tb-h, 60px) + 14px); }
+.screen::-webkit-scrollbar { width: 8px; } .screen::-webkit-scrollbar-thumb { background: rgba(245,197,66,.6); border-radius: 8px; } .screen::-webkit-scrollbar-track { background: transparent; }
+@media (max-height: 520px) { .topbar .chip-txt { display: none; } .topbar .chip { padding: 6px 10px; } }
