@@ -53,6 +53,7 @@ window.NAVIDAD_CFG = {
   <button id="tbFull" class="chip" type="button">⛶ <span class="chip-txt">Pantalla completa</span></button>
   <button id="tbMusic" class="chip" type="button">🎵</button>
   <button id="tbSfx" class="chip" type="button">🔊</button>
+  <button id="tbGfx" class="chip" type="button" title="Calidad de gráficos: Liviano es para celulares con menos capacidad">⚙️ Auto</button>
 </div>
 
 <!-- HUD -->
@@ -265,7 +266,7 @@ window.NAVIDAD_CFG = {
   var abierto = hechos >= NIVELES.length;
   try { if (new URLSearchParams(location.search).get('probar') === 'luisdavid') abierto = true; } catch (e) {}
   if (abierto) {
-    var m = document.createElement('script'); m.type = 'module'; m.src = 'js/biblixia2.min.js?v=20261111b';
+    var m = document.createElement('script'); m.type = 'module'; m.src = 'js/biblixia2.min.js?v=20261115l';
     document.body.appendChild(m);
     return;
   }

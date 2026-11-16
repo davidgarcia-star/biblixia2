@@ -5,7 +5,7 @@ import { createHuman, animateHuman } from './human.js';
 import { CHARACTERS, createCharacter, nameSprite } from './characters.js';
 import { Sound2 } from './audio2.js';
 import { PROVINCES, PROV, AIRPORTS, PLACES, MISSIONS, BOUNDS, toXZ, KM, ZONES } from './rd-data.js';
-import { buildMasks, initFlats, buildLines, buildFarMesh, buildWater, Chunks, linesInChunk, riversInChunk, heightAt, groundAt as groundAt0, H0, inHaiti, typeAt, LINES, linePos, nearRoad, CH } from './terrain.js';
+import { buildMasks, initFlats, buildLines, buildFarMesh, buildWater, Chunks, GFX, linesInChunk, riversInChunk, heightAt, groundAt as groundAt0, H0, inHaiti, typeAt, LINES, linePos, nearRoad, CH } from './terrain.js';
 import { buildTown, buildAirport, buildPorts, buildStations, buildTolls, highwayPumps, streetSigns, buildPlace, decorateChunk, TOWNS, PUMPS, TOLL_LIST, facadeMat, NIGHT_MATS, label, DETAIL, padAt, FACADES } from './towns.js';
 // suelo = terreno, carretera o superficie construida (plaza, andén, pista, muelle): así los pies no se entierran
 const groundAt = (x, z) => { const g = groundAt0(x, z), p = padAt(x, z); return p > g.y - .02 ? { y: p, road: 'pad', main: false } : g; };
@@ -32,19 +32,62 @@ const clamp = THREE.MathUtils.clamp, lerp = THREE.MathUtils.lerp;
 
 /* ---------- Render ---------- */
 const canvas = $('game');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: !isTouch || devicePixelRatio < 2, powerPreference: 'high-performance' });
+// =========================================================
+// MODO LIVIANO: celulares con menos capacidad (ej. Redmi 9C, Android 11, GPU PowerVR, 2–3 GB)
+// Se ve con menos gráfica (sin sombras, sin cielo dibujado, menos nubes y menos detalle lejano)
+// pero el juego se puede jugar sin trabarse. Se detecta solo; también se puede elegir con el
+// botón «Gráficos» o con ?graficos=bajo / ?graficos=alto en la dirección.
+// =========================================================
+const GFX_PREF = (() => {
+  try {
+    const q = new URLSearchParams(location.search).get('graficos');
+    if (q === 'bajo') localStorage.setItem('bx_lite', '1');
+    else if (q === 'alto') localStorage.setItem('bx_lite', '0');
+    else if (q === 'auto') localStorage.removeItem('bx_lite');
+    return localStorage.getItem('bx_lite') || 'auto';
+  } catch (e) { return 'auto'; }
+})();
+function equipoModesto() {
+  const ua = navigator.userAgent || '', android = /Android/i.test(ua);
+  const mem = navigator.deviceMemory || 0, cores = navigator.hardwareConcurrency || 0;
+  const av = +((ua.match(/Android (\d+)/) || [])[1] || 0);
+  let gpu = '';
+  try {
+    const c = document.createElement('canvas'), g = c.getContext('webgl');
+    const e = g && g.getExtension('WEBGL_debug_renderer_info');
+    if (e) gpu = String(g.getParameter(e.UNMASKED_RENDERER_WEBGL) || '');
+    const lc = g && g.getExtension('WEBGL_lose_context'); if (lc) lc.loseContext();
+  } catch (e) {}
+  const gpuDebil = /PowerVR|Mali-(400|450|T\d|G31|G51|G52)|Adreno \(TM\) ([1-5]\d\d|61\d)\b|SwiftShader|llvmpipe/i.test(gpu);
+  return gpuDebil || (mem && mem <= 3) || (android && av && av <= 9) || (android && cores && cores <= 4);
+}
+const LITE = GFX_PREF === '1' || (GFX_PREF === 'auto' && equipoModesto());
+const LR = LITE ? .6 : 1; // en modo liviano lo lejano se oculta antes
+// Botón «Gráficos»: Automático → Liviano → Normal (se guarda y recarga el juego)
+(() => {
+  const b = document.getElementById('tbGfx'); if (!b) return;
+  b.textContent = '⚙️ ' + (GFX_PREF === '1' ? 'Liviano' : GFX_PREF === '0' ? 'Normal' : LITE ? 'Auto·liviano' : 'Auto');
+  b.addEventListener('click', () => {
+    const next = GFX_PREF === 'auto' ? '1' : GFX_PREF === '1' ? '0' : 'auto';
+    try { if (next === 'auto') localStorage.removeItem('bx_lite'); else localStorage.setItem('bx_lite', next); } catch (e) {}
+    try { persist(); } catch (e) {}
+    location.reload();
+  });
+})();
+GFX.lite = LITE;
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: !LITE && (!isTouch || devicePixelRatio < 2), powerPreference: LITE ? 'default' : 'high-performance', precision: LITE ? 'mediump' : 'highp' });
 // calidad automática: si el juego va lento, baja la resolución y luego quita las sombras
-const QBASE = Math.min(devicePixelRatio, isTouch ? 1 : 1.5);
+const QBASE = LITE ? Math.min(devicePixelRatio, .8) : Math.min(devicePixelRatio, isTouch ? 1 : 1.5);
 const Q = { lvl: 0, frames: 0, t: 0, warm: 3 };
 try { Q.lvl = Math.min(3, +localStorage.getItem('biblixia2_q') || 0); } catch (e) {}
 renderer.setPixelRatio(QBASE);
 renderer.setSize(innerWidth, innerHeight);
-renderer.shadowMap.enabled = true; renderer.shadowMap.type = isTouch ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
+renderer.shadowMap.enabled = !LITE; renderer.shadowMap.type = isTouch ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.debug.checkShaderErrors = /^(localhost|127\.)/.test(location.hostname);
 canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); persist(); $('glLost').classList.remove('hidden'); setTimeout(() => location.reload(), 1500); });
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, .7, 70000);
+const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, .7, LITE ? 7000 : 70000);
 addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
 
 // Cielo, sol, luna, estrellas
@@ -52,7 +95,7 @@ const sky = new Sky(); sky.scale.setScalar(60000); scene.add(sky);
 const su = sky.material.uniforms; su.turbidity.value = 4; su.rayleigh.value = 1.4; su.mieCoefficient.value = .005; su.mieDirectionalG.value = .85;
 const sunDir = new THREE.Vector3();
 const hemi = new THREE.HemisphereLight(0xcfe0ff, 0x4b5a3c, .6); scene.add(hemi);
-const sun = new THREE.DirectionalLight(0xfff1dc, 3); sun.castShadow = true;
+const sun = new THREE.DirectionalLight(0xfff1dc, 3); sun.castShadow = !LITE;
 sun.shadow.mapSize.set(isTouch ? 1024 : 2048, isTouch ? 1024 : 2048);
 Object.assign(sun.shadow.camera, { left: -70, right: 70, top: 70, bottom: -70, near: 10, far: 900 }); sun.shadow.bias = -.0006; sun.shadow.normalBias = .04;
 scene.add(sun, sun.target);
@@ -61,7 +104,7 @@ function applyQuality() {
   renderer.setPixelRatio(Math.max(.5, QBASE * pr)); renderer.setSize(innerWidth, innerHeight);
   const sm = Q.lvl >= 1 ? 512 : isTouch ? 1024 : 2048;
   if (sun.shadow.mapSize.x !== sm) { sun.shadow.mapSize.set(sm, sm); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
-  sun.castShadow = Q.lvl < 2;
+  sun.castShadow = !LITE && Q.lvl < 2;
   try { localStorage.setItem('biblixia2_q', Q.lvl); } catch (e) {}
 }
 applyQuality();
@@ -71,6 +114,9 @@ function watchFps(dt) {
   if (Q.t < 3) return;
   const fps = Q.frames / Q.t; Q.frames = 0; Q.t = 0;
   if (fps < 40 && Q.lvl < 3) { Q.lvl++; Q.dropped = true; applyQuality(); Q.warm = 2; }
+  else if (fps < 20 && Q.lvl >= 3 && !LITE) { // sigue muy lento: usar el modo liviano la próxima vez
+    try { if (localStorage.getItem('bx_lite') == null) { localStorage.setItem('bx_lite', '1'); toast('⚡ Tu teléfono va lento: la próxima vez el juego abrirá en modo liviano', '#ffd166', true); } } catch (e) {}
+  }
   else if (fps > 58 && Q.lvl > 0 && !Q.dropped) { Q.lvl--; applyQuality(); Q.warm = 2; } // el equipo va sobrado: subir la calidad otra vez
 }
 scene.fog = new THREE.Fog(0xc4d6ea, 3000, 26000);
@@ -92,12 +138,12 @@ function applyTime(mode) {
   su.sunPosition.value.copy(sd); su.turbidity.value = T.turb; su.rayleigh.value = T.ray;
   sunDir.copy(T.stars ? moonDir : sd); if (sunDir.y < .3) sunDir.y = .3; sunDir.normalize();
   sun.color.set(T.sunC); sun.intensity = T.sunI; hemi.intensity = T.hemi;
-  renderer.toneMappingExposure = T.exp; scene.fog.color.set(T.fog); scene.fog.near = T.fogN; scene.fog.far = T.fogF;
-  scene.background = T.stars ? new THREE.Color(0x05070f) : null; sky.visible = !T.stars; stars.visible = moon.visible = T.stars;
+  renderer.toneMappingExposure = T.exp; scene.fog.color.set(T.fog); scene.fog.near = LITE ? Math.min(T.fogN, 1500) : T.fogN; scene.fog.far = LITE ? Math.min(T.fogF, 4500) : T.fogF;
+  scene.background = T.stars ? new THREE.Color(0x05070f) : LITE ? scene.fog.color : null; sky.visible = !T.stars && !LITE; stars.visible = moon.visible = T.stars;
   facadeMat.emissiveIntensity = T.win; FACADES.forEach(m => m.emissiveIntensity = T.win); NIGHT_MATS.forEach(m => m.emissiveIntensity = T.stars ? 3 : .6);
   for (const p of PLACES) if (p.beams) p.beams.visible = T.stars;
   // luz del cielo para los metales y la pintura de los carros
-  try { if (!envSky) { envSky = new Sky(); envSky.scale.setScalar(50); envScene.add(envSky); } const eu = envSky.material.uniforms; eu.sunPosition.value.copy(sd); eu.turbidity.value = T.turb; eu.rayleigh.value = T.ray; eu.mieCoefficient.value = .005; if (envRT) envRT.dispose(); envRT = pmrem.fromScene(envScene, 0, .1, 100, { size: isTouch ? 128 : 256 }); scene.environment = envRT.texture; scene.environmentIntensity = T.stars ? .2 : .5; } catch (e) {}
+  try { if (!envSky) { envSky = new Sky(); envSky.scale.setScalar(50); envScene.add(envSky); } const eu = envSky.material.uniforms; eu.sunPosition.value.copy(sd); eu.turbidity.value = T.turb; eu.rayleigh.value = T.ray; eu.mieCoefficient.value = .005; if (envRT) envRT.dispose(); envRT = pmrem.fromScene(envScene, 0, .1, 100, { size: LITE ? 32 : isTouch ? 128 : 256 }); scene.environment = envRT.texture; scene.environmentIntensity = T.stars ? .2 : .5; } catch (e) {}
   persist(); renderTimeButtons();
 }
 
@@ -949,7 +995,7 @@ function loop() {
   lamp.position.set(P.pos.x, P.pos.y + 3, P.pos.z); lamp.intensity = save.time === 'noche' && state === 'play' && !P.veh ? 40 : 0;
   const onP = state === 'play' || state === 'talk' || state === 'verse' || state === 'map' || state === 'pause' || entering;
   if (chunks) chunks.update(onP ? P.pos.x : camLook.x, onP ? P.pos.z : camLook.z, farMesh, state === 'loading2' ? 40 : 7);
-  if ((detT -= dt) <= 0) { detT = .5; for (const o of DETAIL) o.obj.visible = Math.abs(o.x - c.x) < o.d && Math.abs(o.z - c.z) < o.d; for (const t of TOWNS) { const d = Math.hypot(t.p.px - c.x, t.p.pz - c.z); t.label.visible = d > 500 && d < 22000; } }
+  if ((detT -= dt) <= 0) { detT = .5; for (const o of DETAIL) o.obj.visible = Math.abs(o.x - c.x) < o.d * LR && Math.abs(o.z - c.z) < o.d * LR; for (const t of TOWNS) { const d = Math.hypot(t.p.px - c.x, t.p.pz - c.z); t.label.visible = d > 500 && d < 22000; } }
   renderer.render(scene, camera);
 }
 // vuelo de la portada sobre la isla

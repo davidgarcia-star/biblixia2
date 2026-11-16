@@ -277,14 +277,17 @@ export function buildFarMesh() {
   return m;
 }
 
+// Modo liviano (celulares con menos capacidad): menos terreno detallado alrededor
+export const GFX = { lite: false };
+
 export class Chunks {
   constructor(scene, decorate) { this.scene = scene; this.map = new Map(); this.queue = []; this.decorate = decorate; this.cx = 1e9; this.cz = 1e9; }
-  want(d) { return d <= 2 ? 50 : d <= 4 ? 16 : 6; }
+  want(d) { return GFX.lite ? (d <= 1 ? 32 : d <= 2 ? 12 : 6) : d <= 2 ? 50 : d <= 4 ? 16 : 6; }
   update(px, pz, far, budgetMs = 6) {
     const cx = Math.floor(px / CH), cz = Math.floor(pz / CH);
     if (cx !== this.cx || cz !== this.cz) {
       this.cx = cx; this.cz = cz;
-      const R = 7; if (far) far.userData.uBox.value.set((cx - R) * CH + 5, (cz - R) * CH + 5, (cx + R + 1) * CH - 5, (cz + R + 1) * CH - 5);
+      const R = GFX.lite ? 4 : 7; if (far) far.userData.uBox.value.set((cx - R) * CH + 5, (cz - R) * CH + 5, (cx + R + 1) * CH - 5, (cz + R + 1) * CH - 5);
       const need = new Map();
       for (let j = -R; j <= R; j++) for (let i = -R; i <= R; i++) { const d = Math.max(Math.abs(i), Math.abs(j)); need.set((cx + i) + ',' + (cz + j), { x: cx + i, z: cz + j, res: this.want(d), d }); }
       for (const [k, c] of this.map) { const n = need.get(k); if (!n) { this.drop(k, c); } }
@@ -315,7 +318,7 @@ export class Chunks {
 }
 
 /* ---------- 8) Cintas de carretera, vía y ríos por pedazos ---------- */
-function texCanvas(w, h, draw) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; }
+function texCanvas(w, h, draw) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = GFX.lite ? 1 : 8; return t; }
 const roadTex = { main: null, sec: null };
 function roadMat(main) {
   const k = main ? 'main' : 'sec';
