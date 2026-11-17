@@ -305,18 +305,22 @@ function input() {
    MISIONES
    ========================================================= */
 const CHAR = Object.fromEntries(CHARACTERS.map(c => [c.id, c]));
-/* BIBLIXIA 3 se desbloquea al pasar 3 misiones (llegar a tiempo con 3 personajes distintos).
+/* BIBLIXIA 3 se desbloquea al aprobar al menos un viaje (llegar a tiempo) en cada nivel: Básico, Intermedio y Avanzado.
    Se calcula del avance guardado (biblixia2_v1), que también viaja con la cuenta de jugador. */
 const B3_URL = 'https://davidgarcia-star.github.io/luisdavidgarcia/biblixia3/', B3_META = 3;
-const b3Passed = () => Object.values(save.done).filter(s => s > 0).length;
+const b3Levels = () => ['basico', 'intermedio', 'avanzado'].map(id => MISSIONS.some(m => m.nivel === id && save.done[m.who] > 0));
+const b3Passed = () => b3Levels().filter(Boolean).length;
 const b3Open = () => b3Passed() >= B3_META;
+const B3_NOM = ['🟢 Básico', '🟡 Intermedio', '🔴 Avanzado'];
+const b3Lista = () => b3Levels().map((ok, i) => (ok ? '✅ ' : '⬜ ') + B3_NOM[i]).join(' · ');
+const b3Faltan = () => 'falta: ' + b3Levels().map((ok, i) => ok ? null : B3_NOM[i]).filter(Boolean).join(', ');
 function updB3Link() {
   const a = $('b3Link'); if (!a) return; const ok = b3Open();
   a.classList.toggle('locked', !ok);
-  a.innerHTML = ok ? '🏃 BIBLIXIA 3 <small>¡Desbloqueado!</small>' : `🔒 BIBLIXIA 3 <small>${Math.min(b3Passed(), B3_META)} de ${B3_META} misiones</small>`;
+  a.innerHTML = ok ? '🏃 BIBLIXIA 3 <small>¡Desbloqueado!</small>' : `🔒 BIBLIXIA 3 <small>${b3Passed()} de ${B3_META} niveles</small>`;
 }
 // devuelve true solo la primera vez que se desbloquea
-const checkB3 = () => { try { if (b3Open() && localStorage.getItem('biblixia3_desbloqueado') !== 'si') { localStorage.setItem('biblixia3_desbloqueado', 'si'); updB3Link(); return true; } } catch (e) {} updB3Link(); return false; };
+const checkB3 = () => { try { if (b3Open() && localStorage.getItem('biblixia3_abierto_niveles') !== 'si') { localStorage.setItem('biblixia3_abierto_niveles', 'si'); updB3Link(); return true; } } catch (e) {} updB3Link(); return false; };
 checkB3();
 /* NIVELES: Básico, Intermedio y Avanzado. Cada personaje es de un nivel; el nivel decide el largo del viaje y el tiempo. */
 const NIV = Object.fromEntries(NIVELES.map(n => [n.id, n]));
@@ -433,7 +437,7 @@ function showResult(st, got) {
   state = 'result'; $('resStars').textContent = st ? '★'.repeat(st) + '☆'.repeat(3 - st) : '⏰';
   $('resTitle').textContent = st ? '¡Entrega completada!' : 'Entrega tarde';
   const n = nivelOf(M.m), lp = levelProgress(n.id);
-  const b3 = M.b3New ? '<br><b class="res-b3">🎉 ¡Desbloqueaste BIBLIXIA 3! Ya puedes jugarlo.</b>' : b3Open() ? '' : `<br>🏃 BIBLIXIA 3: <b>${b3Passed()} de ${B3_META}</b> misiones pasadas a tiempo`;
+  const b3 = M.b3New ? '<br><b class="res-b3">🎉 ¡Desbloqueaste BIBLIXIA 3! Ya puedes jugarlo.</b>' : b3Open() ? '' : `<br>🏃 BIBLIXIA 3: niveles aprobados <b>${b3Passed()} de ${B3_META}</b> (${b3Faltan()})`;
   $('resText').innerHTML = `Llevaste a <b>${M.def.name}</b> a <b>${M.dest.name}</b>.<br>${got ? `💎 Tesoro: <b>${M.def.emoji || '🎁'} ${M.def.gift}</b><br>` : ''}${n.icon} Nivel ${n.name}: <b>${lp.done} de ${lp.total}</b> personajes${lp.done === lp.total ? ' · ✅ ¡Nivel completado!' : ''}<br>Tesoros: <b>${save.gifts.length}</b> de ${MISSIONS.length} · Entregas: ${save.deliveries}${b3}`;
   $('btnResB3').classList.toggle('hidden', !b3Open());
   M = null; updMissionHUD(); show('result');
@@ -1112,7 +1116,7 @@ function openLevels() {
     box.appendChild(b);
   }
   const ok = b3Open();
-  $('lvB3').innerHTML = ok ? `🏃 <b>BIBLIXIA 3 está desbloqueado.</b> <a href="${B3_URL}" rel="noopener">Jugar BIBLIXIA 3</a>` : `🔒 Pasa <b>${B3_META} misiones</b> a tiempo en cualquier nivel para desbloquear <b>BIBLIXIA 3</b>. Llevas ${b3Passed()} de ${B3_META}.`;
+  $('lvB3').innerHTML = ok ? `🏃 <b>BIBLIXIA 3 está desbloqueado.</b> <a href="${B3_URL}" rel="noopener">Jugar BIBLIXIA 3</a>` : `🔒 Para desbloquear <b>BIBLIXIA 3</b> aprueba al menos <b>un viaje a tiempo en cada nivel</b>: ${b3Lista()}.`;
   show('levels');
 }
 $('lvBack').onclick = () => { sound.click(); if (document.body.classList.contains('ingame')) play(); else { show('splash'); state = 'menu'; } };

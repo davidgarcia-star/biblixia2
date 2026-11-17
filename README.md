@@ -20,7 +20,7 @@ BIBLIXIA 2 tiene 3 niveles. Al tocar **JUGAR** (o **🎯 Niveles**) eliges el ni
 Cada nivel muestra cuántos personajes llevaste a tiempo y sus estrellas. La colección también está ordenada por nivel.
 
 ## BIBLIXIA 3
-Al **pasar 3 misiones** (llevar a 3 personajes distintos a tiempo, en cualquier nivel) se desbloquea [BIBLIXIA 3](https://davidgarcia-star.github.io/luisdavidgarcia/biblixia3/). En la portada aparece el botón con el avance (por ejemplo «2 de 3 misiones») y al lograrlo sale el botón «Jugar BIBLIXIA 3».
+Al **aprobar al menos un viaje en cada nivel** (llevar a tiempo a un personaje del Básico, uno del Intermedio y uno del Avanzado) se desbloquea [BIBLIXIA 3](https://davidgarcia-star.github.io/luisdavidgarcia/biblixia3/). En la portada aparece el botón con el avance (por ejemplo «2 de 3 niveles») y al lograrlo sale el botón «Jugar BIBLIXIA 3».
 
 ## El mapa
 - La forma real de la isla, a escala 1:2: 1 km real equivale a 500 unidades del juego. Los viajes duran de 10 minutos a más de 1 hora.

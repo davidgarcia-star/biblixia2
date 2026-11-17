@@ -146,7 +146,7 @@ window.NAVIDAD_CFG = {
     <div class="sp-links">
       <a class="sp-link" href="https://davidgarcia-star.github.io/biblixia/" rel="noopener">✨ BIBLIXIA 1</a>
       <a class="sp-link" href="https://davidgarcia-star.github.io/luisdavidgarcia/juego-biblico/" rel="noopener">📖 DESAFÍO BÍBLICO RD</a>
-      <a class="sp-link b3-link locked" id="b3Link" href="https://davidgarcia-star.github.io/luisdavidgarcia/biblixia3/" rel="noopener">🔒 BIBLIXIA 3 <small>3 misiones</small></a>
+      <a class="sp-link b3-link locked" id="b3Link" href="https://davidgarcia-star.github.io/luisdavidgarcia/biblixia3/" rel="noopener">🔒 BIBLIXIA 3 <small>0 de 3 niveles</small></a>
     </div>
     <a class="btn-paypal" href="https://www.paypal.me/luisdavidgarciaMCP?locale.x=es_XC&amp;country.x=DO" target="_blank" rel="noopener noreferrer">💛 HONRAR AL CREADOR DEL JUEGO VÍA PAYPAL</a>
     <div class="sp-social">
@@ -292,7 +292,7 @@ window.NAVIDAD_CFG = {
   var abierto = hechos >= NIVELES.length;
   try { if (new URLSearchParams(location.search).get('probar') === 'luisdavid') abierto = true; } catch (e) {}
   if (abierto) {
-    var m = document.createElement('script'); m.type = 'module'; m.src = 'js/biblixia2.min.js?v=20261117b';
+    var m = document.createElement('script'); m.type = 'module'; m.src = 'js/biblixia2.min.js?v=20261117c';
     document.body.appendChild(m);
     return;
   }
