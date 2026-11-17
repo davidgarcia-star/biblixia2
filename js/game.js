@@ -305,6 +305,11 @@ function input() {
    MISIONES
    ========================================================= */
 const CHAR = Object.fromEntries(CHARACTERS.map(c => [c.id, c]));
+/* BIBLIXIA 3 se desbloquea cuando se llevan TODOS los personajes (se guarda en este navegador) */
+const checkB2Done = () => { try { const ids = MISSIONS.map(m => m.who).filter(w => CHAR[w]);
+  if (ids.length && ids.every(w => save.done[w] !== undefined) && localStorage.getItem('biblixia2_completado') !== 'si') {
+    localStorage.setItem('biblixia2_completado', 'si'); try { toast('🏆 ¡Terminaste BIBLIXIA 2! BIBLIXIA 3 ya está desbloqueado', '#ffd166', true); } catch (e) {} } } catch (e) {} };
+checkB2Done();
 const destOf = id => { const p = PROV[id]; if (p) return { x: p.px ?? p.x, z: p.pz ?? p.z, name: p.name, full: 'provincia ' + p.name, r: 230, prov: true }; const pl = PLACES.find(q => q.id === id); return { x: pl.x, z: pl.z, name: pl.name, full: pl.name, r: 260, place: pl }; };
 // kilómetros del viaje según el mapa real: de la plaza de la provincia al destino (San Cristóbal → Santo Domingo ≈ 20 km)
 const tripKm = (p, d) => Math.hypot((p.px ?? p.x) - d.x, (p.pz ?? p.z) - d.z);
@@ -382,7 +387,7 @@ function arrive() {
   const def = M.def, ontime = !M.late, frac = M.time / M.total;
   const st = ontime ? (frac > .4 ? 3 : frac > .15 ? 2 : 1) : 0;
   save.deliveries++; save.stars += st;
-  save.done[def.id] = Math.max(save.done[def.id] || 0, st);
+  save.done[def.id] = Math.max(save.done[def.id] || 0, st); checkB2Done();
   if (ontime && !save.gifts.includes(def.id)) save.gifts.push(def.id);
   save.mission = null; persist(); sound.cash(); sound.win();
   const msg = def.msg;
