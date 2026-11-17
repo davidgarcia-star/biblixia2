@@ -279,6 +279,7 @@ window.NAVIDAD_CFG = {
     <p class="vref">«Bienaventurado el hombre que persevera bajo la prueba.» — Santiago 1:12</p>
   </div>
 </div>
+<script src="js/felicidades.js?v=1"></script>
 <script src="js/pais.js?v=1"></script>
 <script src="js/cuenta.js?v=8" data-pantallas="#splash,#b2Lock"></script>
 <script src="js/sugerencias.js?v=1" data-origen="BIBLIXIA 2" data-pantallas="#splash,#b2Lock"></script>
@@ -292,7 +293,7 @@ window.NAVIDAD_CFG = {
   var abierto = hechos >= NIVELES.length;
   try { if (new URLSearchParams(location.search).get('probar') === 'luisdavid') abierto = true; } catch (e) {}
   if (abierto) {
-    var m = document.createElement('script'); m.type = 'module'; m.src = 'js/biblixia2.min.js?v=20261117c';
+    var m = document.createElement('script'); m.type = 'module'; m.src = 'js/biblixia2.min.js?v=20261117d';
     document.body.appendChild(m);
     return;
   }

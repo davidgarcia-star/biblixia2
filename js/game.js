@@ -440,6 +440,8 @@ function showResult(st, got) {
   const b3 = M.b3New ? '<br><b class="res-b3">🎉 ¡Desbloqueaste BIBLIXIA 3! Ya puedes jugarlo.</b>' : b3Open() ? '' : `<br>🏃 BIBLIXIA 3: niveles aprobados <b>${b3Passed()} de ${B3_META}</b> (${b3Faltan()})`;
   $('resText').innerHTML = `Llevaste a <b>${M.def.name}</b> a <b>${M.dest.name}</b>.<br>${got ? `💎 Tesoro: <b>${M.def.emoji || '🎁'} ${M.def.gift}</b><br>` : ''}${n.icon} Nivel ${n.name}: <b>${lp.done} de ${lp.total}</b> personajes${lp.done === lp.total ? ' · ✅ ¡Nivel completado!' : ''}<br>Tesoros: <b>${save.gifts.length}</b> de ${MISSIONS.length} · Entregas: ${save.deliveries}${b3}`;
   $('btnResB3').classList.toggle('hidden', !b3Open());
+  // portada de FELICIDADES: aprobó al menos un viaje en cada nivel (Básico, Intermedio y Avanzado)
+  if (M.b3New) setTimeout(() => window.Felicidades?.mostrar({ juego: 'BIBLIXIA 2', niveles: NIVELES.map(v => v.icon + ' ' + v.name), jugador: (save.player && save.player.name) || '', texto: 'BIBLIXIA 3 ya está desbloqueado', siguiente: { nombre: 'BIBLIXIA 3', url: B3_URL }, sonido: sound.sfxOn !== false }), 700);
   M = null; updMissionHUD(); show('result');
 }
 // conversación durante el viaje: el personaje cuenta su historia (voz de hombre o de mujer)
