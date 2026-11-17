@@ -203,7 +203,7 @@ export function groundAt(x, z) {
 
 /* ---------- 6) Colores del suelo ---------- */
 const C = h => new THREE.Color(h);
-const cSand = C(0xe6d6a8), cWet = C(0xcbb98a), cGrass = C(0x5a9638), cGrass2 = C(0x79a944), cCane = C(0x9cbc4e), cForest = C(0x3b7530), cPine = C(0x2d5a2c), cRock = C(0x8a806e), cDry = C(0xa09c60), cDeep = C(0x245a6a), cReef = C(0x5fc7c0), cHaiti = C(0x75904a), cCity = C(0xb4b0a6), cRun = C(0x6a6c70);
+const cSand = C(0xe6d6a8), cWet = C(0xcbb98a), cGrass = C(0x587a36), cGrass2 = C(0x6f8a40), cCane = C(0x8fa54c), cForest = C(0x34582a), cPine = C(0x2a4a28), cRock = C(0x857a68), cDry = C(0x9a9060), cDeep = C(0x245a6a), cReef = C(0x5fc7c0), cHaiti = C(0x75904a), cCity = C(0x8e8a82), cRun = C(0x6a6c70);
 const [dxW] = toXZ(-70.6, 0), [, dzS] = toXZ(0, 18.6), [nwX] = toXZ(-71.2, 0), [, nwZ] = toXZ(0, 19.45), [eastX] = toXZ(-69.5, 0);
 function colorAt(x, z, h, out) {
   const sd = sdAt(x, z), n = fbm(x / 2500, z / 2500);
@@ -230,7 +230,17 @@ const inHaitiFast = (x, z) => x < borderX && typeAt(x, z) === 2;
 
 /* ---------- 7) Pedazos del terreno (chunks) con 3 niveles de detalle ---------- */
 export const CH = 1000;
-const terrainMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .95 });
+// textura de detalle (hierba, tierra y piedritas) que se multiplica por el color del suelo: quita el aspecto liso
+function detailTex() {
+  const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d');
+  x.fillStyle = '#e9e9e9'; x.fillRect(0, 0, 256, 256);
+  const dot = (px, py, w, h, col) => { x.fillStyle = col; for (const ox of [0, -256, 256]) for (const oy of [0, -256, 256]) x.fillRect(px + ox, py + oy, w, h); };
+  for (let i = 0; i < 2600; i++) { const v = 175 + Math.random() * 80 | 0; dot(Math.random() * 256, Math.random() * 256, 1 + Math.random() * 2, 2 + Math.random() * 4, `rgb(${v},${v},${v})`); }
+  for (let i = 0; i < 90; i++) { const v = 150 + Math.random() * 60 | 0, r = 4 + Math.random() * 12; dot(Math.random() * 256, Math.random() * 256, r, r * .7, `rgba(${v},${v - 6},${v - 14},.35)`); }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  return t;
+}
+const terrainMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .95, map: detailTex() });
 (() => { // grano fino
   const cv = document.createElement('canvas'); cv.width = cv.height = 128; const x = cv.getContext('2d'), im = x.createImageData(128, 128);
   for (let q = 0; q < 128 * 128; q++) { const v = 205 + Math.random() * 50; im.data.set([v, v, v, 255], q * 4); } x.putImageData(im, 0, 0);
@@ -281,7 +291,7 @@ export function buildFarMesh() {
 export const GFX = { lite: false };
 
 export class Chunks {
-  constructor(scene, decorate) { this.scene = scene; this.map = new Map(); this.queue = []; this.decorate = decorate; this.cx = 1e9; this.cz = 1e9; }
+  constructor(scene, decorate) { this.scene = scene; this.map = new Map(); this.queue = []; this.decoQ = []; this.decorate = decorate; this.cx = 1e9; this.cz = 1e9; }
   want(d) { return GFX.lite ? (d <= 1 ? 32 : d <= 2 ? 12 : 6) : d <= 2 ? 50 : d <= 4 ? 16 : 6; }
   update(px, pz, far, budgetMs = 6) {
     const cx = Math.floor(px / CH), cz = Math.floor(pz / CH);
@@ -295,19 +305,25 @@ export class Chunks {
       for (const [k, n] of need) { const c = this.map.get(k); if (!c || c.res !== n.res) this.queue.push({ k, ...n }); }
       this.queue.sort((a, b) => a.d - b.d);
     }
-    const t0 = performance.now();
-    while (this.queue.length && performance.now() - t0 < budgetMs) {
+    const t0 = performance.now(); let built = 0;
+    while (this.queue.length && performance.now() - t0 < budgetMs && (budgetMs > 12 || built < (GFX.lite ? 1 : 2))) { built++;
       const q = this.queue.shift(), old = this.map.get(q.k);
       const g = chunkGeo(q.x, q.z, q.res);
       const m = new THREE.Mesh(g, terrainMat); m.position.set(q.x * CH, 0, q.z * CH); m.receiveShadow = true; m.castShadow = q.res >= 50; m.matrixAutoUpdate = false; m.updateMatrix();
       this.scene.add(m);
       const c = { mesh: m, res: q.res, deco: null };
-      if (old) { if (old.deco && q.res >= 50) { c.deco = old.deco; old.deco = null; } this.drop(q.k, old, true); }
-      if (q.res >= 50 && !c.deco && this.decorate) c.deco = this.decorate(q.x, q.z);
+      if (old) { if (old.deco && q.res >= (GFX.lite ? 32 : 50)) { c.deco = old.deco; old.deco = null; } this.drop(q.k, old, true); }
+      if (q.res >= (GFX.lite ? 32 : 50) && !c.deco && this.decorate) this.decoQ.push({ k: q.k, x: q.x, z: q.z });
       if (q.res < 50 && old && old.deco) {}
       this.map.set(q.k, c);
     }
-    return this.queue.length;
+    // árboles y casitas: uno por cuadro, solo si en este cuadro no se armó terreno (o si está cargando)
+    while (this.decoQ.length && (budgetMs > 12 || !built) && performance.now() - t0 < Math.max(budgetMs, 4)) {
+      const d = this.decoQ.shift(), c = this.map.get(d.k);
+      if (c && !c.deco && c.res >= (GFX.lite ? 32 : 50)) c.deco = this.decorate(d.x, d.z);
+      if (budgetMs <= 12) break;
+    }
+    return this.queue.length + this.decoQ.length;
   }
   drop(k, c, keep) {
     this.scene.remove(c.mesh); c.mesh.geometry.dispose();
@@ -323,11 +339,15 @@ const roadTex = { main: null, sec: null };
 function roadMat(main) {
   const k = main ? 'main' : 'sec';
   if (!roadTex[k]) roadTex[k] = new THREE.MeshStandardMaterial({ roughness: .85, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, map: texCanvas(128, 256, (x, w, h) => {
-    x.fillStyle = '#3b3c40'; x.fillRect(0, 0, w, h);
-    for (let i = 0; i < 1600; i++) { const v = 48 + Math.random() * 34; x.fillStyle = `rgb(${v},${v},${v + 3})`; x.fillRect(Math.random() * w, Math.random() * h, 1.5, 1.5); }
-    x.fillStyle = '#f2f2ee'; x.fillRect(3, 0, 4, h); x.fillRect(w - 7, 0, 4, h);
-    if (main) { x.fillStyle = '#f5c518'; x.fillRect(w / 2 - 5, 0, 3, h); x.fillRect(w / 2 + 2, 0, 3, h); x.fillStyle = '#f2f2ee'; x.fillRect(w / 4 - 2, 0, 3, h * .45); x.fillRect(3 * w / 4 - 1, 0, 3, h * .45); }
-    else { x.fillStyle = '#f5c518'; x.fillRect(w / 2 - 2, 0, 4, h * .5); }
+    x.fillStyle = '#35363a'; x.fillRect(0, 0, w, h);
+    for (let i = 0; i < 2200; i++) { const v = 40 + Math.random() * 36; x.fillStyle = `rgb(${v},${v},${v + 3})`; x.fillRect(Math.random() * w, Math.random() * h, 1.5, 1.5); }
+    for (let i = 0; i < 5; i++) { const v = 30 + Math.random() * 30 | 0; x.fillStyle = `rgba(${v},${v},${v + 2},.55)`; x.fillRect(10 + Math.random() * (w - 40), Math.random() * h, 12 + Math.random() * 30, 14 + Math.random() * 40); } // parches
+    x.strokeStyle = 'rgba(20,20,22,.5)'; x.lineWidth = 1; for (let i = 0; i < 6; i++) { let px = Math.random() * w, py = Math.random() * h; x.beginPath(); x.moveTo(px, py); for (let k = 0; k < 6; k++) { px += (Math.random() - .5) * 14; py += Math.random() * 10; x.lineTo(px, py); } x.stroke(); } // grietas
+    const gm = x.createLinearGradient(0, 0, w, 0); gm.addColorStop(.2, 'rgba(0,0,0,0)'); gm.addColorStop(.3, 'rgba(15,15,15,.18)'); gm.addColorStop(.38, 'rgba(0,0,0,0)'); gm.addColorStop(.62, 'rgba(0,0,0,0)'); gm.addColorStop(.7, 'rgba(15,15,15,.18)'); gm.addColorStop(.8, 'rgba(0,0,0,0)'); x.fillStyle = gm; x.fillRect(0, 0, w, h); // marcas de gomas
+    x.globalAlpha = .82; x.fillStyle = '#e6e4dc'; x.fillRect(3, 0, 4, h); x.fillRect(w - 7, 0, 4, h);
+    if (main) { x.fillStyle = '#dcb32a'; x.fillRect(w / 2 - 5, 0, 3, h); x.fillRect(w / 2 + 2, 0, 3, h); x.fillStyle = '#f2f2ee'; x.fillRect(w / 4 - 2, 0, 3, h * .45); x.fillRect(3 * w / 4 - 1, 0, 3, h * .45); }
+    else { x.fillStyle = '#dcb32a'; x.fillRect(w / 2 - 2, 0, 4, h * .5); }
+    x.globalAlpha = 1; for (let i = 0; i < 260; i++) { x.fillStyle = 'rgba(40,40,42,.6)'; x.fillRect(Math.random() * w, Math.random() * h, 2, 2); } // rayas gastadas
   }) });
   return roadTex[k];
 }

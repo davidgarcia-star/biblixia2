@@ -22,6 +22,15 @@ Cada nivel muestra cuántos personajes llevaste a tiempo y sus estrellas. La col
 ## BIBLIXIA 3
 Al **aprobar al menos un viaje en cada nivel** (llevar a tiempo a un personaje del Básico, uno del Intermedio y uno del Avanzado) se desbloquea [BIBLIXIA 3](https://davidgarcia-star.github.io/luisdavidgarcia/biblixia3/). En la portada aparece el botón con el avance (por ejemplo «2 de 3 niveles») y al lograrlo sale el botón «Jugar BIBLIXIA 3».
 
+## Conversaciones en el viaje
+Cada uno de los 41 personajes cuenta **su propia historia** mientras lo llevas, frase por frase y sin repetir (`js/historias.js`). Después comenta el viaje: la provincia por la que van pasando, el transporte, la hora del día y cuánto falta, cada cosa una sola vez. Al llegar entrega su testimonio y su tesoro.
+
+## Aspecto y rendimiento
+- Luz cálida con calina del Caribe, verdes del trópico, asfalto con parches y grietas, casas con colores gastados por el sol, rejas y aires acondicionados.
+- Barrios de casas de concreto (con azotea, tinaco o techo de zinc) alrededor del centro de cada pueblo.
+- HUD de mundo abierto: paneles oscuros y letras con borde negro.
+- Modo liviano para celulares modestos: materiales más simples (se ven casi igual), cielo en degradado, menos árboles, sombreadores preparados al cargar y el terreno se arma de a poco para que no se congele.
+
 ## El mapa
 - La forma real de la isla, a escala 1:2: 1 km real equivale a 500 unidades del juego. Los viajes duran de 10 minutos a más de 1 hora.
 - Las 32 provincias (31 + Distrito Nacional), con su capital en las coordenadas reales. Cada una tiene plaza, iglesia, calles, edificios, letrero, bomba de combustible y parqueo de transportes.

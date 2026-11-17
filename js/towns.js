@@ -1,25 +1,46 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { PROVINCES, PROV, AIRPORTS, PORTS, PLACES, TOLLS, toXZ } from './rd-data.js';
-import { heightAt, H0, Hfull, nearRoad, LINES, linePos, CH, fbm, rand2, typeAt, sdAt } from './terrain.js';
+import { heightAt, H0, Hfull, nearRoad, LINES, linePos, CH, fbm, rand2, typeAt, sdAt, GFX } from './terrain.js';
 import { solidBox, solidCircle, solidLocal } from './collide.js';
 
 /* =========================================================
    PUEBLOS, LUGARES FAMOSOS, AEROPUERTOS, ESTACIONES, BOMBAS Y PEAJES
    ========================================================= */
-const std = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: .7, ...o });
+/* Texturas de desgaste (manchas, polvo, grano) para que nada se vea liso ni de caricatura */
+function grain(kind) {
+  const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d');
+  x.fillStyle = '#ececec'; x.fillRect(0, 0, 128, 128);
+  const n = kind === 'grass' ? 1800 : 900;
+  for (let i = 0; i < n; i++) { const v = (kind === 'grass' ? 160 : 190) + Math.random() * 60 | 0; x.fillStyle = `rgb(${v},${v},${v})`; x.fillRect(Math.random() * 128, Math.random() * 128, kind === 'grass' ? 1 : 1.6, kind === 'grass' ? 3 : 1.6); }
+  for (let i = 0; i < (kind === 'grass' ? 0 : 18); i++) { const r = 6 + Math.random() * 18, px = Math.random() * 128, py = Math.random() * 128, g = x.createRadialGradient(px, py, 0, px, py, r); g.addColorStop(0, `rgba(90,80,64,${kind === 'grass' ? .22 : .16})`); g.addColorStop(1, 'rgba(90,80,64,0)'); x.fillStyle = g; x.fillRect(px - r, py - r, r * 2, r * 2); }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  if (kind === 'grass') t.repeat.set(18, 18);
+  return t;
+}
+const GR = { base: grain('base'), grass: grain('grass') };
+const std = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: .7, map: o.metalness > .5 || o.transparent ? null : GR.base, ...o });
 const MT = {
-  white: std(0xf2efe8), cream: std(0xe9dcc0), stone: std(0xb9ad96, { roughness: .9 }), dark: std(0x2a2c30), glass: std(0x2a4258, { metalness: .4, roughness: .1 }),
-  red: std(0xc8202a), blue: std(0x1f4fa8), gold: std(0xffc93c, { metalness: .9, roughness: .25 }), grass: std(0x4f8f3a, { roughness: 1 }), path: std(0xd8ccb0, { roughness: 1 }),
-  wood: std(0x7a5432), metal: std(0x9aa0a8, { metalness: .7, roughness: .3 }), concrete: std(0xcfcac0, { roughness: .95 }), water: std(0x3aa0d0, { roughness: .05, transparent: true, opacity: .85 }),
+  white: std(0xe8e3d8), cream: std(0xddcfb0), stone: std(0xaa9e88, { roughness: .9 }), dark: std(0x2a2c30), glass: std(0x2a4258, { metalness: .4, roughness: .1 }),
+  red: std(0xc8202a), blue: std(0x1f4fa8), gold: std(0xffc93c, { metalness: .9, roughness: .25 }), grass: std(0x56783a, { roughness: 1, map: GR.grass }), path: std(0xc9bc9e, { roughness: 1 }),
+  wood: std(0x7a5432), metal: std(0x9aa0a8, { metalness: .7, roughness: .3 }), concrete: std(0xbdb8ad, { roughness: .95 }), water: std(0x3aa0d0, { roughness: .05, transparent: true, opacity: .85 }),
   lamp: new THREE.MeshStandardMaterial({ color: 0xfff4d0, emissive: 0xffe0a0, emissiveIntensity: 1.5 }), sand: std(0xe6d6a8, { roughness: 1 }), rock: std(0x7e7466, { roughness: 1 }),
   zinc: std(0x9aa3aa, { metalness: .6, roughness: .45 }), green: std(0x2e7d4f),
 };
 export const NIGHT_MATS = [MT.lamp];
 const add = (g, geo, m, x = 0, y = 0, z = 0, ry = 0) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.rotation.y = ry; o.castShadow = true; o.receiveShadow = true; g.add(o); return o; };
 const box = (w, h, d) => { const g = new THREE.BoxGeometry(w, h, d); g.translate(0, h / 2, 0); return g; };
-function canvasTex(w, h, draw) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; }
+function canvasTex(w, h, draw) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h, c); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; }
 
+
+// polvo y manchas de lluvia que bajan de las ventanas, suciedad abajo y grano del repello
+function ensuciar(x, w, h, wins) {
+  for (let i = 0; i < 1400; i++) { const v = 200 + Math.random() * 55 | 0; x.fillStyle = `rgba(${v - 40},${v - 46},${v - 56},.10)`; x.fillRect(Math.random() * w, Math.random() * h, 2, 2); }
+  for (const [wx, wy, ww] of wins) { const g = x.createLinearGradient(0, wy, 0, wy + 46); g.addColorStop(0, 'rgba(70,60,48,.22)'); g.addColorStop(1, 'rgba(70,60,48,0)'); x.fillStyle = g; x.fillRect(wx + 2, wy, ww - 4, 46); }
+  const b = x.createLinearGradient(0, h, 0, h - 60); b.addColorStop(0, 'rgba(80,68,52,.45)'); b.addColorStop(1, 'rgba(80,68,52,0)'); x.fillStyle = b; x.fillRect(0, h - 60, w, 60);
+  const t = x.createLinearGradient(0, 0, 0, 26); t.addColorStop(0, 'rgba(60,55,50,.3)'); t.addColorStop(1, 'rgba(60,55,50,0)'); x.fillStyle = t; x.fillRect(0, 0, w, 26);
+}
+const reja = (x, wx, wy, ww, wh) => { x.fillStyle = 'rgba(25,25,28,.85)'; for (let i = 1; i < 5; i++) x.fillRect(wx + i * ww / 5 - 1, wy, 2, wh); x.fillRect(wx, wy + wh / 2 - 1, ww, 2); x.fillRect(wx - 2, wy - 2, ww + 4, 2); x.fillRect(wx - 2, wy + wh, ww + 4, 2); };
 
 /* ---------- Unir piezas fijas por material (menos llamadas de dibujo) ---------- */
 export const DETAIL = []; // objetos que se ocultan de lejos: { obj, x, z, d }
@@ -69,11 +90,12 @@ function panel(text, sub, w = 16, h = 4, bg = '#0b2a6a', fg = '#ffffff') {
   g.add(a, b); return g;
 }
 /* ---------- Fachadas (ventanas que se encienden de noche) ---------- */
-const facade = canvasTex(256, 256, (x, w, h) => { x.fillStyle = '#ffffff'; x.fillRect(0, 0, w, h); for (let j = 0; j < 4; j++) for (let i = 0; i < 4; i++) { x.fillStyle = '#3a4a5a'; x.fillRect(18 + i * 60, 22 + j * 60, 36, 40); x.fillStyle = '#ffffff'; x.fillRect(16 + i * 60, 64 + j * 60, 40, 4); } });
+const facade = canvasTex(256, 256, (x, w, h) => { x.fillStyle = '#ffffff'; x.fillRect(0, 0, w, h); for (let j = 0; j < 4; j++) for (let i = 0; i < 4; i++) { x.fillStyle = '#3a4a5a'; x.fillRect(18 + i * 60, 22 + j * 60, 36, 40); x.fillStyle = '#ffffff'; x.fillRect(16 + i * 60, 64 + j * 60, 40, 4); } const wins = []; for (let j = 0; j < 4; j++) for (let i = 0; i < 4; i++) { wins.push([18 + i * 60, 62 + j * 60, 36]); if ((i + j) % 2) reja(x, 18 + i * 60, 22 + j * 60, 36, 40); } ensuciar(x, w, h, wins); });
 const facadeEm = canvasTex(256, 256, (x, w, h) => { x.fillStyle = '#000'; x.fillRect(0, 0, w, h); for (let j = 0; j < 4; j++) for (let i = 0; i < 4; i++) { if (Math.random() < .55) { x.fillStyle = '#ffcf80'; x.fillRect(18 + i * 60, 22 + j * 60, 36, 40); } } });
 export const facadeMat = new THREE.MeshStandardMaterial({ map: facade, emissiveMap: facadeEm, emissive: 0xffffff, emissiveIntensity: 0, roughness: .8 });
 const roofMat = new THREE.MeshStandardMaterial({ roughness: .7 });
-const PASTEL = [0xf6d7a7, 0xa7d8f6, 0xf6a7c1, 0xb8f0b0, 0xfff1a8, 0xf2f2ee, 0xd4b8f0, 0xffc49a, 0x9ae6d8, 0xf0c0a0, 0xe8e8e0, 0xc8dce8];
+// colores de las casas dominicanas, pero gastados por el sol (no de caramelo)
+const PASTEL = [0xd9c39c, 0x9dbccc, 0xd49a92, 0xa6c294, 0xe2cf7c, 0xe4ded0, 0xb5a3c4, 0xdda67c, 0x8fc4b8, 0xcfa287, 0xd3cfc3, 0xa9bccb];
 const ROOFS = [0x8a3a2a, 0x9aa3aa, 0x5a6a7a, 0xb04a32, 0x6a7078, 0x2a6a8a];
 
 
@@ -97,12 +119,15 @@ function facadeCanvas(kind) {
     if (kind === 'house') { // casa: puerta, ventanas con persianas y zócalo
       x.fillStyle = '#d8d8d8'; x.fillRect(0, 220, w, 36);
       x.fillStyle = '#6a4a2a'; x.fillRect(108, 120, 40, 112);
-      for (const wx of [30, 176]) { x.fillStyle = '#3a4a5a'; x.fillRect(wx, 110, 50, 60); x.fillStyle = '#2e7d4f'; x.fillRect(wx - 10, 110, 10, 60); x.fillRect(wx + 50, 110, 10, 60); }
+      for (const wx of [30, 176]) { x.fillStyle = '#2c3640'; x.fillRect(wx, 110, 50, 60); x.fillStyle = '#3d6a4e'; x.fillRect(wx - 10, 110, 10, 60); x.fillRect(wx + 50, 110, 10, 60); reja(x, wx, 110, 50, 60); }
       x.fillStyle = '#c8c8c8'; x.fillRect(0, 0, w, 14);
+      ensuciar(x, w, h, [[30, 170, 50], [176, 170, 50], [108, 232, 40]]);
     } else if (kind === 'apt') { // apartamentos con balcones
       for (let j = 0; j < 4; j++) { const y = j * 64; x.fillStyle = '#e4e4e4'; x.fillRect(0, y + 52, w, 12); for (let i = 0; i < 3; i++) { x.fillStyle = '#2c3e52'; x.fillRect(14 + i * 82, y + 10, 56, 40); x.fillStyle = '#9aa6b0'; x.fillRect(10 + i * 82, y + 44, 64, 3); for (let k = 0; k < 7; k++) x.fillRect(12 + i * 82 + k * 9, y + 44, 2, 10); } }
+      { const wins = []; for (let j = 0; j < 4; j++) for (let i = 0; i < 3; i++) wins.push([14 + i * 82, j * 64 + 50, 56]); ensuciar(x, w, h, wins);
+        for (let j = 0; j < 4; j++) for (let i = 0; i < 3; i++) { if ((i + j * 2) % 3) reja(x, 14 + i * 82, j * 64 + 10, 56, 40); if ((i * 7 + j) % 4 === 1) { x.fillStyle = '#d9dcdc'; x.fillRect(22 + i * 82, j * 64 + 30, 22, 16); x.fillStyle = '#8a9090'; for (let k = 0; k < 4; k++) x.fillRect(24 + i * 82, j * 64 + 33 + k * 3, 18, 1); } } } // rejas y aires acondicionados
     } else { // torre de cristal
-      for (let j = 0; j < 16; j++) for (let i = 0; i < 8; i++) { const v = 60 + Math.random() * 40; x.fillStyle = `rgb(${v * .55},${v * .8},${v + 40})`; x.fillRect(i * 32 + 2, j * 16 + 1, 29, 13); }
+      for (let j = 0; j < 16; j++) for (let i = 0; i < 8; i++) { const v = 45 + Math.random() * 45; x.fillStyle = `rgb(${v * .62 + 12 | 0},${v * .74 + 16 | 0},${v * .82 + 24 | 0})`; x.fillRect(i * 32 + 2, j * 16 + 1, 29, 13); } { const g = x.createLinearGradient(0, 0, w, h); g.addColorStop(0, 'rgba(255,240,220,.16)'); g.addColorStop(.45, 'rgba(255,255,255,0)'); g.addColorStop(.6, 'rgba(255,255,255,.1)'); g.addColorStop(1, 'rgba(0,0,0,.12)'); x.fillStyle = g; x.fillRect(0, 0, w, h); } // cristal oscuro con reflejo
       x.fillStyle = '#cfd6dc'; for (let i = 0; i <= 8; i++) x.fillRect(i * 32, 0, 2, h);
     }
   });
@@ -170,6 +195,7 @@ export function buildTown(p, scene) {
   const lab = label(p.name, 'Provincia', { scale: 2.2 + big * .6 }); lab.position.set(cx, fy + 70 + big * 25, cz); scene.add(lab); town.label = lab;
   // calles con aceras (textura en cuadrícula de 34 u: los edificios van en el centro de cada cuadra)
   const offC = Math.hypot(cx - p.x, cz - p.z), core = Math.max(150, Math.min(R * .78 - offC, 260 + big * 260));
+  town.core = core; town.cx = cx; town.cz = cz;
   const nT = Math.floor(core / 34), SS = 34 * (2 * nT + 1), sg0 = new THREE.PlaneGeometry(SS, SS), suv = sg0.attributes.uv;
   for (let i = 0; i < suv.count; i++) suv.setXY(i, suv.getX(i) * (2 * nT + 1), suv.getY(i) * (2 * nT + 1));
   const st = new THREE.Mesh(sg0, streetMat); st.rotation.x = -Math.PI / 2; st.position.set(0, fy + .06, 0); st.receiveShadow = true; st.userData.keep = true; g.add(st);
@@ -484,16 +510,23 @@ const TREE = (() => {
   return { palm: mk(palm), tree: mk(tree), pine: mk(pine), house: mk(house), mat: m };
 })();
 const AP_XZ = AIRPORTS.map(a => toXZ(a.lon, a.lat));
+// piezas de los barrios (compartidas por todos los pedazos)
+const BARRIO = {
+  box: new THREE.BoxGeometry(1, 1, 1).translate(0, .5, 0),
+  zinc: new THREE.ConeGeometry(.75, 1, 4).rotateY(Math.PI / 4).translate(0, .5, 0),
+  tank: new THREE.CylinderGeometry(.75, .75, 1.3, 10).translate(0, .65, 0),
+  tankMat: new THREE.MeshStandardMaterial({ roughness: .6 }),
+};
 export function decorateChunk(cx, cz, scene) {
   const g = new THREE.Group(), ox = cx * CH, oz = cz * CH;
   const lists = { palm: [], tree: [], pine: [], house: [] };
   const dens = fbm(ox / 5000 + 3, oz / 5000 - 7);
-  const N = Math.floor(60 + dens * 260);
+  const N = Math.floor((60 + dens * 260) * (GFX.lite ? .45 : 1)); // en modo liviano, menos árboles
   for (let k = 0; k < N; k++) {
     const x = ox + rand2(cx * 977 + k, cz * 131) * CH, z = oz + rand2(cx * 31 + k * 7, cz * 919 + k) * CH;
     const h = H0(x, z); if (h < 2.5) continue;
     const local = fbm(x / 400, z / 400); if (local < .38) continue;
-    if (TOWNS.some(t => Math.hypot(x - t.p.x, z - t.p.z) < t.R * .9)) continue;
+    if (TOWNS.some(t => Math.hypot(x - t.p.x, z - t.p.z) < t.R * .9 || Math.hypot(x - t.cx, z - t.cz) < t.R * 1.2)) continue; // ni en el pueblo ni en sus barrios
     if (AP_XZ.some(([ax, az]) => Math.hypot(x - ax, z - az) < 1000)) continue; // pistas libres de árboles
     const r = nearRoad(x, z, 30); if (r && r.e < 22) continue;
     const sd = sdAt(x, z), y = heightAt(x, z);
@@ -513,8 +546,38 @@ export function decorateChunk(cx, cz, scene) {
     if (kind === 'house') solids.push(solidBox(ox + x, oz + z, 3 * s, 2.5 * s, ry, y + 4 * s));
     else solids.push(solidCircle(ox + x, oz + z, (kind === 'tree' ? .55 : .45) * s));
   }
+  // barrios: casas de concreto de una y dos plantas alrededor del centro de cada pueblo (antes era un llano vacío)
+  const barrio = [];
+  for (const t of TOWNS) {
+    const inner = (t.core || 300) + 40, outer = t.R * 1.18;
+    if (ox > t.cx + outer || ox + CH < t.cx - outer || oz > t.cz + outer || oz + CH < t.cz - outer) continue;
+    const S = 38;
+    for (let gx = S / 2; gx < CH; gx += S) for (let gz = S / 2; gz < CH; gz += S) {
+      const x = ox + gx + (rand2(cx * 7 + gx, cz * 3 + gz) - .5) * 6, z = oz + gz + (rand2(cz * 5 + gz, cx * 11 + gx) - .5) * 6;
+      const dd = Math.hypot(x - t.cx, z - t.cz); if (dd < inner || dd > outer) continue;
+      if (rand2(x * .013 + 3, z * .017 - 1) < (GFX.lite ? .5 : .28)) continue;
+      const r = nearRoad(x, z, 30); if (r && r.e < 13) continue;
+      const y = heightAt(x, z); if (y < 1.5) continue;
+      const two = rand2(z * .02, x * .03) < .32, w = 9 + rand2(x, z) * 6, dpt = 8 + rand2(z, x) * 5, h = two ? 6.6 + rand2(x * 2, z) : 3.4 + rand2(x, z * 2) * .6;
+      barrio.push([x - ox, y - .4, z - oz, w, h, dpt, rand2(x * 3, z * 3)]);
+      solids.push(solidBox(x, z, w / 2, dpt / 2, 0, y + h));
+    }
+  }
   g.userData.solids = solids;
   const d = new THREE.Object3D(), col = new THREE.Color();
+  if (barrio.length) {
+    const n = barrio.length, H = new THREE.InstancedMesh(BARRIO.box, houseMat, n), F = new THREE.InstancedMesh(BARRIO.box, roofMat, n), Z = new THREE.InstancedMesh(BARRIO.zinc, zincMat, n), T = new THREE.InstancedMesh(BARRIO.tank, BARRIO.tankMat, n);
+    let nf = 0, nz = 0, nt = 0;
+    barrio.forEach(([x, y, z, w, h, dp, k], i) => {
+      d.rotation.set(0, 0, 0); d.position.set(x, y, z); d.scale.set(w, h + .4, dp); d.updateMatrix(); H.setMatrixAt(i, d.matrix); H.setColorAt(i, col.setHex(PASTEL[(k * 997 | 0) % PASTEL.length]));
+      if (k < .62) { // azotea de concreto con tinaco
+        d.position.set(x, y + h + .4, z); d.scale.set(w + .4, .5, dp + .4); d.updateMatrix(); F.setMatrixAt(nf, d.matrix); F.setColorAt(nf++, col.setHex(0xb9b4aa));
+        if (k < .45) { d.position.set(x + w * .25, y + h + .9, z - dp * .2); d.scale.setScalar(1); d.updateMatrix(); T.setMatrixAt(nt, d.matrix); T.setColorAt(nt++, col.setHex(k < .2 ? 0x1c1c1e : 0x2c5a8a)); }
+      } else { d.position.set(x, y + h + .4, z); d.scale.set(w * 1.04, 2.4, dp * 1.04); d.updateMatrix(); Z.setMatrixAt(nz, d.matrix); Z.setColorAt(nz++, col.setHex(ROOFS[(k * 331 | 0) % ROOFS.length])); }
+    });
+    F.count = nf; Z.count = nz; T.count = nt;
+    for (const im of [H, F, Z, T]) { if (!im.count) continue; im.userData.shared = true; im.castShadow = !GFX.lite; im.receiveShadow = true; im.computeBoundingSphere(); g.add(im); }
+  }
   for (const [kind, arr] of Object.entries(lists)) {
     if (!arr.length) continue;
     const im = new THREE.InstancedMesh(TREE[kind], TREE.mat, arr.length); im.userData.shared = true;

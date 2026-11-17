@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { VERSES, VERSES_OLD } from './verses.js';
+import { HISTORIAS, POR_TRANSPORTE } from './historias.js';
 import { createHuman, animateHuman } from './human.js';
 import { CHARACTERS, createCharacter, nameSprite } from './characters.js';
 import { Sound2 } from './audio2.js';
@@ -96,11 +97,27 @@ addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); ca
 const sky = new Sky(); sky.scale.setScalar(60000); scene.add(sky);
 const su = sky.material.uniforms; su.turbidity.value = 4; su.rayleigh.value = 1.4; su.mieCoefficient.value = .005; su.mieDirectionalG.value = .85;
 const sunDir = new THREE.Vector3();
-const hemi = new THREE.HemisphereLight(0xcfe0ff, 0x4b5a3c, .6); scene.add(hemi);
+const hemi = new THREE.HemisphereLight(0xd4e2f2, 0x5c4c34, .6); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff1dc, 3); sun.castShadow = !LITE;
 sun.shadow.mapSize.set(isTouch ? 1024 : 2048, isTouch ? 1024 : 2048);
 Object.assign(sun.shadow.camera, { left: -70, right: 70, top: 70, bottom: -70, near: 10, far: 900 }); sun.shadow.bias = -.0006; sun.shadow.normalBias = .04;
 scene.add(sun, sun.target);
+/* Modo liviano: los materiales con brillo físico (los más pesados para la tarjeta gráfica del celular)
+   se cambian por materiales mate (Lambert) o con brillo simple (Phong). Se ve casi igual y va mucho más fluido. */
+const LAMB = new Map(), MAT0 = THREE.Material.prototype.onBeforeCompile;
+function liteMat(m) {
+  if (!m || !m.isMeshStandardMaterial || m.onBeforeCompile !== MAT0 || m.userData.noLite) return m;
+  let l = LAMB.get(m); if (l) return l;
+  const o = { color: m.color, map: m.map, vertexColors: m.vertexColors, transparent: m.transparent, opacity: m.opacity, side: m.side, alphaTest: m.alphaTest, depthWrite: m.depthWrite, emissive: m.emissive, emissiveMap: m.emissiveMap, emissiveIntensity: m.emissiveIntensity, fog: m.fog, polygonOffset: m.polygonOffset, polygonOffsetFactor: m.polygonOffsetFactor, polygonOffsetUnits: m.polygonOffsetUnits, alphaMap: m.alphaMap, flatShading: m.flatShading };
+  const shiny = m.roughness < .35 || (m.isMeshPhysicalMaterial && m.clearcoat > 0);
+  l = shiny ? new THREE.MeshPhongMaterial({ ...o, shininess: 20 + (1 - m.roughness) * 80, specular: m.metalness > .4 ? 0x8a8a8a : 0x3a3a3a, normalMap: m.normalMap, normalScale: m.normalScale })
+    : new THREE.MeshLambertMaterial(o);
+  l.name = m.name; LAMB.set(m, l); return l;
+}
+function liteSwap(root) { if (!LITE) return; root.traverse(o => { if (!o.material || o.userData.lt) return; o.userData.lt = 1; o.material = Array.isArray(o.material) ? o.material.map(liteMat) : liteMat(o.material); }); }
+// todo lo que se agrega a la escena (árboles, carros, personajes) recibe el material liviano al momento
+if (LITE) { const add0 = THREE.Object3D.prototype.add; THREE.Object3D.prototype.add = function (...objs) { const r = add0.apply(this, objs); for (const o of objs) if (o && o.isObject3D) liteSwap(o); return r; }; }
+function liteSync() { for (const [m, l] of LAMB) { if (l.emissiveIntensity !== m.emissiveIntensity) l.emissiveIntensity = m.emissiveIntensity; if (l.opacity !== m.opacity) l.opacity = m.opacity; } }
 function applyQuality() {
   const pr = [1, .85, .75, .62][Q.lvl];
   renderer.setPixelRatio(Math.max(.5, QBASE * pr)); renderer.setSize(innerWidth, innerHeight);
@@ -128,12 +145,21 @@ const lamp = new THREE.PointLight(0xffe2b0, 0, 60, 1.6); scene.add(lamp);
 const headlight = new THREE.SpotLight(0xfff4dc, 0, 160, .55, .5, 1.2); scene.add(headlight, headlight.target);
 
 const TIMES = {
-  dia: { name: '☀️ Día', elev: 42, az: 140, sunC: 0xfff1dc, sunI: 3.0, hemi: .45, exp: .42, fog: 0xbcd4ea, fogN: 3500, fogF: 30000, turb: 3, ray: 1.2, stars: false, win: 0 },
-  atardecer: { name: '🌅 Atardecer', elev: 4, az: 250, sunC: 0xff9a50, sunI: 2.2, hemi: .4, exp: .55, fog: 0xd8a078, fogN: 2500, fogF: 22000, turb: 9, ray: 2.6, stars: false, win: .8 },
+  dia: { name: '☀️ Día', elev: 38, az: 140, sunC: 0xffe4bc, sunI: 3.2, hemi: .42, exp: .35, fog: 0xc8d1d3, fogN: 2800, fogF: 26000, turb: 5.5, ray: 1.5, stars: false, win: 0 },
+  atardecer: { name: '🌅 Atardecer', elev: 5, az: 250, sunC: 0xff9448, sunI: 2.4, hemi: .36, exp: .52, fog: 0xc99272, fogN: 2500, fogF: 22000, turb: 9, ray: 2.6, stars: false, win: .8 },
   noche: { name: '🌙 Noche', elev: -12, az: 200, sunC: 0x9fb8ff, sunI: .9, hemi: .32, exp: 1.1, fog: 0x0c1428, fogN: 1200, fogF: 14000, turb: 1, ray: .3, stars: true, win: 1.6 },
 };
 const pmrem = new THREE.PMREMGenerator(renderer), envScene = new THREE.Scene(); let envSky = null, envRT = null;
 const moonDir = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(50), THREE.MathUtils.degToRad(120));
+// cielo liviano (modo liviano): un degradado de azul a calina en el horizonte, sin el sombreador del cielo
+const LSKY = {};
+function liteSky(T) {
+  const k = T.name; if (LSKY[k]) return LSKY[k];
+  const c = document.createElement('canvas'); c.width = 2; c.height = 256; const x = c.getContext('2d'), g = x.createLinearGradient(0, 0, 0, 256);
+  const top = T === TIMES.atardecer ? '#3d5a8a' : '#3f73b4', mid = T === TIMES.atardecer ? '#e7a874' : '#9fc0dc', hz = '#' + new THREE.Color(T.fog).getHexString();
+  g.addColorStop(0, top); g.addColorStop(.55, mid); g.addColorStop(.8, hz); g.addColorStop(1, hz); x.fillStyle = g; x.fillRect(0, 0, 2, 256);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return (LSKY[k] = t);
+}
 function applyTime(mode) {
   const T = TIMES[mode] || TIMES.dia; save.time = mode;
   const sd = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(90 - T.elev), THREE.MathUtils.degToRad(T.az));
@@ -141,12 +167,12 @@ function applyTime(mode) {
   sunDir.copy(T.stars ? moonDir : sd); if (sunDir.y < .3) sunDir.y = .3; sunDir.normalize();
   sun.color.set(T.sunC); sun.intensity = T.sunI; hemi.intensity = T.hemi;
   renderer.toneMappingExposure = T.exp; scene.fog.color.set(T.fog); scene.fog.near = LITE ? Math.min(T.fogN, 1500) : T.fogN; scene.fog.far = LITE ? Math.min(T.fogF, 4500) : T.fogF;
-  scene.background = T.stars ? new THREE.Color(0x05070f) : LITE ? scene.fog.color : null; sky.visible = !T.stars && !LITE; stars.visible = moon.visible = T.stars;
+  scene.background = T.stars ? new THREE.Color(0x05070f) : LITE ? liteSky(T) : null; sky.visible = !T.stars && !LITE; stars.visible = moon.visible = T.stars;
   facadeMat.emissiveIntensity = T.win; FACADES.forEach(m => m.emissiveIntensity = T.win); NIGHT_MATS.forEach(m => m.emissiveIntensity = T.stars ? 3 : .6);
   for (const p of PLACES) if (p.beams) p.beams.visible = T.stars;
   // luz del cielo para los metales y la pintura de los carros
   try { if (!envSky) { envSky = new Sky(); envSky.scale.setScalar(50); envScene.add(envSky); } const eu = envSky.material.uniforms; eu.sunPosition.value.copy(sd); eu.turbidity.value = T.turb; eu.rayleigh.value = T.ray; eu.mieCoefficient.value = .005; if (envRT) envRT.dispose(); envRT = pmrem.fromScene(envScene, 0, .1, 100, { size: LITE ? 32 : isTouch ? 128 : 256 }); scene.environment = envRT.texture; scene.environmentIntensity = T.stars ? .2 : .5; } catch (e) {}
-  persist(); renderTimeButtons();
+  liteSync(); persist(); renderTimeButtons();
 }
 
 /* ---------- Sonido ---------- */
@@ -446,16 +472,33 @@ function showResult(st, got) {
   if (M.b3New) setTimeout(() => window.Felicidades?.mostrar({ juego: 'BIBLIXIA 2', niveles: NIVELES.map(v => v.icon + ' ' + v.name), jugador: (save.player && save.player.name) || '', texto: 'BIBLIXIA 3 ya está desbloqueado', siguiente: { nombre: 'BIBLIXIA 3', url: B3_URL }, sonido: sound.sfxOn !== false }), 700);
   M = null; updMissionHUD(); show('result');
 }
-// conversación durante el viaje: el personaje cuenta su historia (voz de hombre o de mujer)
-const CHAT = ['¿Sabías que en esta tierra hay muchas iglesias que alaban a Dios?', '¡Qué bonita es la República Dominicana!', 'Maneja con cuidado, que el SEÑOR nos guarda.', 'Mira esas montañas: «Alzaré mis ojos a los montes; ¿de dónde vendrá mi socorro?».', '¿Ya echaste combustible? No nos vayamos a quedar en el camino.'];
+// conversación durante el viaje: cada personaje cuenta SU propia historia, frase por frase y sin repetir.
+// Después comenta el viaje (provincia por la que van, transporte, hora, distancia), cada cosa una sola vez.
+const HORA_TXT = { dia: '¡Qué sol tan bonito hace hoy en Quisqueya! Gracias a Dios por este día.', atardecer: 'Mira ese atardecer: los cielos cuentan la gloria de Dios.', noche: 'Qué linda está la noche. Dios conoce cada estrella por su nombre.' };
+const ENTRA = [p => `¡Mira, ya entramos a la provincia ${p.name}!`, p => `Estamos pasando por ${p.name}. Su capital es ${p.cap}.`, p => `Bienvenidos a ${p.name}. ¡Qué bonita es esta tierra!`, p => `Ya vamos por ${p.name}. Seguimos rumbo a nuestro destino.`];
+function rideLine() {
+  const T = M.talkS || (M.talkS = { story: 0, said: new Set(), prov: M.pick.prov.id, km: 1e9, ctx: 0 });
+  const story = HISTORIAS[M.def.id] || (M.def.msg.match(/[^.!?]+[.!?»]+/g) || [M.def.msg]).map(x => x.trim());
+  const once = (k, txt) => { if (!txt || T.said.has(k)) return null; T.said.add(k); return txt; };
+  const v = P.veh, left = M.dest ? Math.hypot(M.dest.x - (v ? v.x : P.pos.x), M.dest.z - (v ? v.z : P.pos.z)) : 0;
+  // avisos importantes primero
+  if (left < 3 * KM) { const t = once('cerca', `¡Ya casi llegamos a ${M.dest.name}! Busca la columna de luz verde.`); if (t) return [t, 20]; }
+  if (M.time < 60 && !M.late) { const t = once('prisa', '¡Se nos acaba el tiempo! Vamos, tú puedes.'); if (t) return [t, 20]; }
+  if (provNow && provNow.id !== T.prov && provNow.id !== M.dest.id) { T.prov = provNow.id; const t = once('p-' + provNow.id, ENTRA[T.said.size % ENTRA.length](provNow)); if (t) return [t, 12]; }
+  if (T.story === 1 && v) { const t = once('veh', POR_TRANSPORTE[v.kind]); if (t) return [t, 12]; }
+  // su historia, en orden
+  if (T.story < story.length) { const t = story[T.story++]; return [t, 13 + t.length * .045]; }
+  // comentarios del viaje (cada uno una sola vez)
+  const opts = [() => once('hora', HORA_TXT[save.time]), () => once('dest', M.dest.place ? `¿Sabías que en ${M.dest.name}... ${M.dest.place.text}` : null)];
+  for (const f of opts) { const t = f(); if (t) return [t, 40]; }
+  const km = Math.round(left / KM);
+  if (km >= 3 && T.km - km >= 8) { T.km = km; return [`Nos faltan unos ${km} kilómetros para llegar a ${M.dest.name}.`, 45]; }
+  return [null, 20]; // ya contó todo: se queda tranquilo (no repite)
+}
 function rideTalk(dt) {
   if (!M || M.phase !== 'ride' || !passenger) return;
   M.talk -= dt; if (M.talk > 0) return;
-  const parts = (M.def.msg.match(/[^.!?]+[.!?»]+/g) || [M.def.msg]).map(s => s.trim());
-  let txt;
-  if (M.line < parts.length) txt = parts[M.line];
-  else txt = CHAT[(M.line - parts.length) % CHAT.length];
-  M.line++; M.talk = M.line <= parts.length ? 9 + txt.length * .05 : 45;
+  const [txt, wait] = rideLine(); M.talk = wait; if (!txt) return;
   subtitle(M.def.name.split(' (')[0], txt); lastNarr = clockT;
   sound.say(txt, { male: M.def.gender !== 'f', rate: .95 });
 }
@@ -1277,6 +1320,9 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) { per
   camLook.set(PROV.dn.x, 0, PROV.dn.z);
   state = 'loading2';
   for (let i = 0; i < 200 && chunks.update(PROV.dn.x, PROV.dn.z, farMesh, 60) > 0; i++) { loadBar(.9 + .1 * Math.min(1, i / 60)); await idle(); }
+  // materiales livianos y sombreadores listos de una vez (así no se congela la primera vez que aparece algo)
+  liteSwap(scene); if (LITE) setInterval(() => { liteSwap(scene); liteSync(); }, 1500);
+  try { renderer.compile(scene, camera); } catch (e) {}
   state = 'menu'; $('loading').classList.add('done'); document.body.classList.add('ready');
   $('btnPlay').querySelector('span').textContent = save.mission ? '▶ CONTINUAR VIAJE' : save.deliveries ? '▶ CONTINUAR' : '▶ JUGAR';
 })();

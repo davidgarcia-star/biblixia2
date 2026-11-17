@@ -283,3 +283,27 @@ body.driving #prompt { bottom: 128px; }
 .sp-link small { font-weight: 600; opacity: .8; font-size: 11px; margin-left: 4px; }
 .sp-link.b3-link.locked { opacity: .7; border-style: dashed; }
 .res-b3 { color: #ffd34d; }
+
+/* =========================================================
+   HUD de mundo abierto: más serio y realista (paneles oscuros, letras con borde negro,
+   sin desenfoque de fondo, que en celulares gasta mucha tarjeta gráfica)
+   ========================================================= */
+#hud { --hud-f: "Arial Narrow", "Roboto Condensed", "Helvetica Neue", system-ui, sans-serif; font-family: var(--hud-f); }
+#hud .hpanel, #hud .ib, #hud .gauges { background: rgba(8, 9, 12, .58); border: 1px solid rgba(255,255,255,.1); border-radius: 6px; backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: 0 2px 10px rgba(0,0,0,.35); }
+#hud .ib { border-radius: 6px; }
+#hud .mcard-hud { border-left: 3px solid #c9a227; }
+#hud .mh-top b { font-size: 15px; letter-spacing: .03em; text-transform: uppercase; }
+#hud #mTime, #hud .g-speed b, #hud .money b { font-family: var(--hud-f); font-weight: 900; letter-spacing: .02em; color: #f1ead2; text-shadow: -2px 0 #000, 2px 0 #000, 0 -2px #000, 0 2px #000, 0 3px 6px rgba(0,0,0,.6); }
+#hud #mTime { font-size: 26px; color: #f6e7a8; }
+#hud .money b { color: #8fdc7c; font-size: 17px; }
+#hud .mh-bar { border-radius: 2px; height: 5px; } #hud .mh-bar i { background: linear-gradient(90deg, #6fae4a, #d8b23a); }
+#hud .mh-btn { border-radius: 4px; background: rgba(201,162,39,.16); color: #e8cf7a; text-transform: uppercase; letter-spacing: .04em; }
+#hud .prov { border-radius: 4px; letter-spacing: .06em; text-transform: uppercase; }
+#hud .mini-wrap { border: 3px solid rgba(20,20,22,.9); box-shadow: 0 0 0 1px rgba(255,255,255,.35), 0 4px 14px rgba(0,0,0,.5); }
+#hud .g-speed { background: radial-gradient(circle, #0c0d10 58%, transparent 60%), conic-gradient(#c9a227 0 75%, rgba(255,255,255,.12) 0); }
+#hud .banner { font-family: Georgia, "Times New Roman", serif; font-style: italic; font-weight: 700; letter-spacing: .02em; color: #f3ecd6; text-shadow: -2px 0 #000, 2px 0 #000, 0 -2px #000, 0 2px #000, 0 6px 18px rgba(0,0,0,.6); }
+#hud .banner small { font-family: var(--hud-f); font-style: normal; color: #d8b23a; }
+#hud .subs { background: none; box-shadow: none; font-size: 15px; font-weight: 700; color: #fff; text-shadow: -1px 0 #000, 1px 0 #000, 0 -1px #000, 0 1px #000, 0 2px 4px rgba(0,0,0,.8); }
+#hud .subs b { color: #f2c94c; }
+#hud #toast { font-family: var(--hud-f); letter-spacing: .03em; text-shadow: -2px 0 #000, 2px 0 #000, 0 -2px #000, 0 2px #000; }
+#touch .tbtns button, #joy { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
