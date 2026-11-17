@@ -69,7 +69,7 @@ export function makeVehicle(kind, color) {
     add(g, new THREE.BoxGeometry(.22, .06, .3), M.seat, 0, .92, -.28);
     add(g, new THREE.CylinderGeometry(.02, .02, .6), M.black, 0, .95, .5, 0, 0, Math.PI / 2);
     add(g, new THREE.BoxGeometry(.3, .03, .4), M.metal, 0, .78, -.68); // parrilla atrás
-    u.seats = [[0, .42, -.25], [0, .32, -.7]];
+    u.seats = [[0, .42, -.25], [0, .32, -.7]]; u.ride = 1;
   } else if (kind === 'moto') {
     const c = paint(color ?? 0xc81e1e);
     u.wheels.push(wheel(g, 0, .34, .78, .34, .14), wheel(g, 0, .34, -.72, .34, .16));
@@ -81,7 +81,7 @@ export function makeVehicle(kind, color) {
     add(g, new THREE.BoxGeometry(.18, .12, .06), M.head, 0, .86, .78);
     add(g, new THREE.CylinderGeometry(.05, .05, .7), M.chrome, .2, .4, -.4, Math.PI / 2);
     add(g, new THREE.BoxGeometry(.18, .06, .05), M.tail, 0, .8, -.85);
-    u.seats = [[0, .36, -.2], [0, .38, -.62]];
+    u.seats = [[0, .36, -.2], [0, .33, -.66]]; u.ride = 1;
   } else if (kind === 'carro' || kind === 'jeepeta' || kind === 'camioneta') {
     // modelos modernos con pintura brillante (diseños propios, sin marcas)
     const inner = kind === 'carro' ? makeSportsCar(color ?? 0xf4f5f7) : kind === 'jeepeta' ? makeLuxSUV(color ?? 0x14161a) : makePickup(color ?? 0xf4f5f7);
@@ -119,8 +119,8 @@ export function makeVehicle(kind, color) {
     add(g, new THREE.BoxGeometry(.62 * k, .12 * k, .7 * k), M.leather, 0, 1.62 * k, .05 * k);
     if (!B) { add(g, new THREE.BoxGeometry(.66, .1, .5), fur(0xb02a2a), 0, 1.6, .05); }
     else { for (const s of [-1, 1]) add(g, new THREE.BoxGeometry(.18, .4, .45), M.rope, s * .42, 1.2 * k, -.15); } // árganas del burro
-    u.seats = [[0, 1.22 * k, .05 * k], [0, 1.18 * k, -.55 * k]];
-    u.straddle = true;
+    u.seats = [[0, 1.22 * k, .05 * k], [0, 1.1 * k, -.6 * k]];
+    u.straddle = true; u.ride = 2;
   } else if (kind === 'lancha') {
     const c = paint(color ?? 0xf4f4f2);
     const sh = new THREE.Shape(); sh.moveTo(-1.1, -2.6); sh.lineTo(1.1, -2.6); sh.lineTo(1.15, 1.2); sh.quadraticCurveTo(.9, 2.6, 0, 3.1); sh.quadraticCurveTo(-.9, 2.6, -1.15, 1.2); sh.closePath();

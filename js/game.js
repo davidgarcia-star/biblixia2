@@ -354,7 +354,14 @@ checkB3();
 const NIV = Object.fromEntries(NIVELES.map(n => [n.id, n]));
 const nivelOf = m => NIV[m.nivel] || NIVELES[0];
 let curNivel = NIV[save.nivel] ? save.nivel : 'basico';
-const timeFor = (dist, m) => Math.round((dist / 24 + 150) * nivelOf(m).factor);
+// cada viaje dura pocos minutos aunque los km sean los reales: Básico 3 min, Intermedio 5 min, Avanzado 7 min (máximo)
+const timeFor = (dist, m) => nivelOf(m).secs;
+// ritmo de viaje: cuánto rinde cada metro para que, manejando normal (con curvas), se llegue en ~75 % del tiempo
+function warpFor(v) {
+  if (!M || M.phase !== 'ride' || !passenger || !v || P.veh !== v) return 1;
+  const need = M.km * 1.35 / (M.total * .75); // unidades por segundo que hacen falta
+  return clamp(need / (v.K.max * .85), 1, 40);
+}
 const levelMissions = id => MISSIONS.filter(m => m.nivel === id && CHAR[m.who]);
 const levelProgress = id => { const L = levelMissions(id); return { total: L.length, done: L.filter(m => save.done[m.who] > 0).length, stars: L.reduce((a, m) => a + (save.done[m.who] || 0), 0) }; };
 // provincias desde donde puede salir cada personaje, según el largo de viaje de su nivel
@@ -406,7 +413,7 @@ function resumeMission() {
   const s = save.mission; if (!s) return;
   const m = MISSIONS.find(q => q.who === s.who && q.dest === s.dest), p = PROV[s.pick]; if (!m || !p || !CHAR[m.who]) { save.mission = null; return; }
   const d = destOf(m.dest), dist = tripKm(p, d), total = timeFor(dist, m);
-  M = { m, def: CHAR[m.who], pick: { x: p.px + 14, z: p.pz + 22, prov: p }, dest: d, phase: 'pick', time: s.time ?? total, total, late: !!s.late, talk: 0, line: 0, km: tripKm(p, d) };
+  M = { m, def: CHAR[m.who], pick: { x: p.px + 14, z: p.pz + 22, prov: p }, dest: d, phase: 'pick', time: Math.min(s.time ?? total, total), total, late: !!s.late, talk: 0, line: 0, km: tripKm(p, d) };
   if (s.phase === 'ride') { M.phase = 'ride'; boardPassengerNow(); } else spawnWaiting();
   updMissionHUD();
 }
@@ -612,33 +619,38 @@ function drive(dt) {
   v.speed = clamp(v.speed, -top * .35, top);
   if (Math.abs(v.speed) > top) v.speed = lerp(v.speed, Math.sign(v.speed) * top, dt * 2);
   const steer = -I.fx * K.turn * clamp(Math.abs(v.speed) / 6, 0, 1) * (1 - clamp(Math.abs(v.speed) / (K.max * 1.6), 0, .5));
-  v.yaw += steer * Math.sign(v.speed || 1) * dt;
+  v.yaw += steer * Math.sign(v.speed || 1) * dt * Math.sqrt(warpFor(v)); // con ritmo de viaje gira un poco más para tomar las curvas
   v.roll = lerp(v.roll, (v.kind === 'moto' || v.kind === 'bici') ? -steer * .35 : K.water ? -steer * .12 : 0, dt * 5);
-  let nx = v.x + Math.sin(v.yaw) * v.speed * dt, nz = v.z + Math.cos(v.yaw) * v.speed * dt;
-  // choques: no se pasa por encima de edificios, árboles, postes ni otros vehículos
-  { const dyn = dynSolids(nx, nz, v);
-    if (vehHit(v, nx, nz, v.yaw, dyn)) {
-      crash(v); nx = v.x; nz = v.z;
-      const sep = vehHit(v, v.x, v.z, v.yaw, dyn); if (sep) { nx += clamp(sep[0], -1.5, 1.5); nz += clamp(sep[1], -1.5, 1.5); }
-    } }
-  const b = blocked(nx, nz);
-  if (b) { blockMsg(b); v.speed = 0; }
-  else if (K.water) {
-    if (H0(nx, nz) > -1.2) { v.speed *= -.2; if (performance.now() - blockMsgT > 2500) { blockMsgT = performance.now(); toast('⚓ Llegaste a la orilla: pulsa T para bajarte', '#9fd8ff'); } }
-    else { v.x = nx; v.z = nz; }
-    v.y = 0; v.pitch = lerp(v.pitch, clamp(v.speed / K.max, 0, 1) * .08, dt * 3);
-  } else {
-    const g = groundAt(nx, nz);
-    if (g.y < .2 && !g.road) { v.speed = 0; if (performance.now() - blockMsgT > 2500) { blockMsgT = performance.now(); toast('🌊 Agua: aquí necesitas una lancha', '#9fd8ff'); } }
-    else {
-      // cuesta arriba se va más lento
-      const slope = (g.y - g0.y) / Math.max(.01, Math.hypot(nx - v.x, nz - v.z));
-      if (slope > .35 && v.speed > 0) v.speed *= Math.pow(.5, dt * slope * 3);
-      v.x = nx; v.z = nz;
-      const fwd = groundAt(v.x + Math.sin(v.yaw) * 1.6, v.z + Math.cos(v.yaw) * 1.6).y, back = groundAt(v.x - Math.sin(v.yaw) * 1.6, v.z - Math.cos(v.yaw) * 1.6).y;
-      v.pitch = lerp(v.pitch, Math.atan2(fwd - back, 3.2), dt * 8);
-      v.y = lerp(v.y, g.y, Math.min(1, dt * 14));
-      if (Math.abs(g.y - v.y) > 3) v.y = g.y;
+  // en un viaje con pasajero el camino rinde más (ritmo de viaje): mismos km en pantalla, menos minutos;
+  // se mueve en pasitos cortos para que los choques sigan funcionando
+  const W = warpFor(v), n = Math.max(1, Math.min(12, Math.ceil(W * Math.abs(v.speed) * dt / 2.5))), sdt = dt * W / n, fdt = dt / n;
+  for (let si = 0, stop = false; si < n && !stop; si++) {
+    let nx = v.x + Math.sin(v.yaw) * v.speed * sdt, nz = v.z + Math.cos(v.yaw) * v.speed * sdt;
+    // choques: no se pasa por encima de edificios, árboles, postes ni otros vehículos
+    { const dyn = dynSolids(nx, nz, v);
+      if (vehHit(v, nx, nz, v.yaw, dyn)) {
+        crash(v); nx = v.x; nz = v.z; stop = true;
+        const sep = vehHit(v, v.x, v.z, v.yaw, dyn); if (sep) { nx += clamp(sep[0], -1.5, 1.5); nz += clamp(sep[1], -1.5, 1.5); }
+      } }
+    const b = blocked(nx, nz);
+    if (b) { blockMsg(b); v.speed = 0; stop = true; }
+    else if (K.water) {
+      if (H0(nx, nz) > -1.2) { v.speed *= -.2; stop = true; if (performance.now() - blockMsgT > 2500) { blockMsgT = performance.now(); toast('⚓ Llegaste a la orilla: pulsa T para bajarte', '#9fd8ff'); } }
+      else { v.x = nx; v.z = nz; }
+      v.y = 0; v.pitch = lerp(v.pitch, clamp(v.speed / K.max, 0, 1) * .08, fdt * 3);
+    } else {
+      const g = groundAt(nx, nz);
+      if (g.y < .2 && !g.road) { v.speed = 0; stop = true; if (performance.now() - blockMsgT > 2500) { blockMsgT = performance.now(); toast('🌊 Agua: aquí necesitas una lancha', '#9fd8ff'); } }
+      else {
+        // cuesta arriba se va más lento
+        const slope = (g.y - g0.y) / Math.max(.01, Math.hypot(nx - v.x, nz - v.z));
+        if (slope > .35 && v.speed > 0) v.speed *= Math.pow(.5, fdt * slope * 3);
+        v.x = nx; v.z = nz;
+        const fwd = groundAt(v.x + Math.sin(v.yaw) * 1.6, v.z + Math.cos(v.yaw) * 1.6).y, back = groundAt(v.x - Math.sin(v.yaw) * 1.6, v.z - Math.cos(v.yaw) * 1.6).y;
+        v.pitch = lerp(v.pitch, Math.atan2(fwd - back, 3.2), fdt * 8);
+        v.y = lerp(v.y, g.y, Math.min(1, fdt * 14));
+        if (Math.abs(g.y - v.y) > 3) v.y = g.y;
+      }
     }
   }
   if (K.engine && Math.abs(v.speed) > .5) useFuel(v, Math.abs(v.speed) * dt);
@@ -679,7 +691,8 @@ function driveAir(v, dt, I, hasFuel) {
     } else if (v.y > floor + .5) v.onGround = false;
     if (v.y > 3000) v.y = 3000;
   }
-  let nx = v.x + Math.sin(v.yaw) * v.speed * dt, nz = v.z + Math.cos(v.yaw) * v.speed * dt;
+  const W = warpFor(v);
+  let nx = v.x + Math.sin(v.yaw) * v.speed * dt * W, nz = v.z + Math.cos(v.yaw) * v.speed * dt * W;
   if (v.y - floor < 8) { const dyn = dynSolids(nx, nz, v); if (vehHit(v, nx, nz, v.yaw, dyn)) { crash(v); nx = v.x; nz = v.z; } }
   const b = blocked(nx, nz, true);
   if (b) { blockMsg(b); v.yaw += Math.PI * .5 * dt; v.speed *= .98; } else { v.x = nx; v.z = nz; }
@@ -690,7 +703,7 @@ function driveTrain(v, dt, I) {
   const K = v.K;
   if (I.fz > 0) v.speed += K.acc * I.fz * dt; else if (I.fz < 0) v.speed += K.acc * 1.6 * I.fz * dt; else v.speed *= Math.pow(.92, dt);
   v.speed = clamp(v.speed, -12, K.max);
-  v.s += v.speed * dt * v.dir;
+  v.s += v.speed * dt * v.dir * warpFor(v);
   if (v.s < 20 || v.s > v.line.len - 20) { v.s = clamp(v.s, 20, v.line.len - 20); v.speed = 0; toast('🚆 Fin de la línea: cambia de sentido con ⬇', '#ffd34d'); v.dir *= -1; }
   placeTrain(v);
   sound.engine('tren', .7 + Math.abs(v.speed) / K.max * .3, Math.abs(v.speed) / K.max);
@@ -839,6 +852,7 @@ function updateParked(dt) {
    CÁMARA
    ========================================================= */
 const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
+const camFollow = { x: 0, y: 0, z: 0, ok: false, d: new THREE.Vector3() };
 function updateCamera(dt) {
   const v = P.veh, K = v ? v.K : null;
   let tx, ty, tz, yaw, dist = (K ? K.cam : 6) * (cam.zoom || 1);
@@ -849,6 +863,9 @@ function updateCamera(dt) {
   const a = (v ? yaw : 0) + cam.yaw + Math.PI, pitch = cam.pitch + (K && K.air && !v.onGround ? .08 : 0);
   const want = new THREE.Vector3(tx + Math.sin(a) * dist * Math.cos(pitch), ty + Math.sin(pitch) * dist + 1, tz + Math.cos(a) * dist * Math.cos(pitch));
   const gy = Math.max(groundAt(want.x, want.z).y, 0) + 1.2; if (want.y < gy) want.y = gy;
+  // la cámara acompaña el avance del vehículo (con el ritmo de viaje va rápido y antes se quedaba atrás)
+  if (v && camFollow.ok) camPos.add(camFollow.d.set(tx - camFollow.x, ty - camFollow.y, tz - camFollow.z));
+  camFollow.x = tx; camFollow.y = ty; camFollow.z = tz; camFollow.ok = !!v;
   camPos.lerp(want, Math.min(1, dt * (v ? 6 : 10))); if (camPos.distanceTo(want) > 400) camPos.copy(want);
   camLook.set(tx, ty, tz);
   camera.position.copy(camPos); camera.lookAt(camLook);
@@ -1025,11 +1042,11 @@ function step(dt) {
     // conductor visible (o adentro)
     const seat = v.obj.userData.seats[0], hostObj = v.kind === 'tren' ? v.obj.userData.cars[0] : v.obj;
     if (v.K.hide) human.root.visible = false;
-    else { human.root.visible = true; const w = hostObj.localToWorld(new THREE.Vector3(...seat)); human.root.position.copy(w); human.root.quaternion.copy(hostObj.quaternion); animateHuman(human, dt, { speed: 0, onGround: true, vy: 0, land: 0, t: clockT, sit: 1 }); }
+    else { human.root.visible = true; const w = hostObj.localToWorld(new THREE.Vector3(...seat)); human.root.position.copy(w); human.root.quaternion.copy(hostObj.quaternion); animateHuman(human, dt, { speed: 0, onGround: true, vy: 0, land: 0, t: clockT, sit: v.obj.userData.ride ? 0 : 1, ride: v.obj.userData.ride || 0 }); }
     if (passenger) {
       const s2 = v.obj.userData.seats[1], w2 = hostObj.localToWorld(new THREE.Vector3(...s2));
       if (PAX.pos.distanceTo(w2) > 60) { PAX.pos.lerp(w2, dt * 1.5); passenger.root.position.copy(PAX.pos); passenger.root.visible = true; animateHuman(passenger, dt, { speed: 8, onGround: true, vy: 0, land: 0, t: clockT }); }
-      else { PAX.pos.copy(w2); passenger.root.visible = !v.K.hide; passenger.root.position.copy(w2); passenger.root.quaternion.copy(hostObj.quaternion); animateHuman(passenger, dt, { speed: 0, onGround: true, vy: 0, land: 0, t: clockT, sit: 1 }); }
+      else { PAX.pos.copy(w2); passenger.root.visible = !v.K.hide; passenger.root.position.copy(w2); passenger.root.quaternion.copy(hostObj.quaternion); animateHuman(passenger, dt, { speed: 0, onGround: true, vy: 0, land: 0, t: clockT, sit: v.obj.userData.ride ? 0 : 1, ride: v.obj.userData.ride || 0, lean: v.obj.userData.ride ? .16 : 0 }); }
     }
     // luz del vehículo de noche
     const night = save.time === 'noche'; headlight.intensity = night ? 900 : 0;

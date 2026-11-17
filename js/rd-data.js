@@ -255,9 +255,9 @@ export const PLACES = [
 /* ---------- Niveles de BIBLIXIA 2 (máximo 3) ----------
    Cada personaje pertenece a un nivel. El nivel decide qué tan largo es el viaje y cuánto tiempo hay. */
 export const NIVELES = [
-  { id: 'basico', name: 'Básico', icon: '🟢', color: '#5fe08a', who: 'Los personajes más conocidos de la Biblia', trip: 'Viajes cortos (hasta 70 km)', clock: 'Tiempo extra', min: 12, max: 70, factor: 1.3 },
-  { id: 'intermedio', name: 'Intermedio', icon: '🟡', color: '#ffd34d', who: 'Apóstoles, profetas mayores y mujeres de fe', trip: 'Viajes medianos (de 50 a 150 km)', clock: 'Tiempo normal', min: 50, max: 150, factor: 1 },
-  { id: 'avanzado', name: 'Avanzado', icon: '🔴', color: '#ff6b5e', who: 'Profetas menores y apóstoles menos conocidos', trip: 'Viajes largos (más de 120 km)', clock: 'Tiempo justo', min: 120, max: 1e9, factor: .9 },
+  { id: 'basico', name: 'Básico', icon: '🟢', color: '#5fe08a', who: 'Los personajes más conocidos de la Biblia', trip: 'Viajes cortos (hasta 70 km)', clock: '3 minutos por viaje', min: 12, max: 70, factor: 1.3, secs: 180 },
+  { id: 'intermedio', name: 'Intermedio', icon: '🟡', color: '#ffd34d', who: 'Apóstoles, profetas mayores y mujeres de fe', trip: 'Viajes medianos (de 50 a 150 km)', clock: '5 minutos por viaje', min: 50, max: 150, factor: 1, secs: 300 },
+  { id: 'avanzado', name: 'Avanzado', icon: '🔴', color: '#ff6b5e', who: 'Profetas menores y apóstoles menos conocidos', trip: 'Viajes largos (más de 120 km)', clock: '7 minutos por viaje', min: 120, max: 1e9, factor: .9, secs: 420 },
 ];
 
 export const MISSIONS = [

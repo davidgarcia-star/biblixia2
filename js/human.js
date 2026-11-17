@@ -598,7 +598,7 @@ export function compactParts(root, keep = new Set()) {
 }
 
 /* ---------- Animación (caminar, correr, saltar, reposo) ---------- */
-export function animateHuman(h, dt, { speed, onGround, vy, land, t, gesture = 0, climb = -1, swim = 0, kneel = -1, praise = -1, sit = 0 }) {
+export function animateHuman(h, dt, { speed, onGround, vy, land, t, gesture = 0, climb = -1, swim = 0, kneel = -1, praise = -1, sit = 0, ride = 0, lean = 0 }) {
   const run = THREE.MathUtils.clamp((speed - 5.5) / 3, 0, 1);
   const amp = THREE.MathUtils.clamp(speed / 5.2, 0, 1);
   const stride = lerp(1.45, 2.3, run);
@@ -670,6 +670,19 @@ export function animateHuman(h, dt, { speed, onGround, vy, land, t, gesture = 0,
     P.spineX = .04; P.spineY = 0; P.headX = Math.sin(t * .6) * .05;
     P.s0x = P.s1x = -.55; P.s0z = .12; P.s1z = -.12; P.e0 = P.e1 = -.75;
   }
+  // montado a horcajadas (moto, bici, caballo, burro): piernas abiertas a los lados del vehículo,
+  // espalda derecha y cabeza arriba mirando al frente; ride: 1 = moto/bici, 2 = caballo/burro
+  let splay = 0;
+  if (ride) {
+    const horse = ride === 2;
+    P.t0 = P.t1 = horse ? -.55 : -1.15; P.k0 = P.k1 = horse ? .75 : 1.45; P.a0 = P.a1 = horse ? -.2 : .1;
+    P.hipY = horse ? .5 : .52; splay = horse ? .62 : .22;
+    P.spineX = horse ? .06 : .16; P.spineY = 0; P.headX = -(horse ? .04 : .14) + Math.sin(t * .6) * .03;
+    // conductor: manos al manubrio o a las riendas; pasajero (lean): manos a la cintura del conductor
+    if (lean) { P.s0x = P.s1x = -.75; P.s0z = -.18; P.s1z = .18; P.e0 = P.e1 = -1.0; }
+    else if (horse) { P.s0x = P.s1x = -.75; P.s0z = .08; P.s1z = -.08; P.e0 = P.e1 = -.9; }
+    else { P.s0x = P.s1x = -1.05; P.s0z = -.2; P.s1z = .2; P.e0 = P.e1 = -.35; }
+  }
   // alabanza al entrar al templo: salta con los brazos arriba, se arrodilla y mueve la cabeza adorando
   let headSide = 0;
   if (praise >= 0) {
@@ -693,6 +706,9 @@ export function animateHuman(h, dt, { speed, onGround, vy, land, t, gesture = 0,
   S(h.arms[0].shoulder.rotation, 'z', P.s0z); S(h.arms[1].shoulder.rotation, 'z', P.s1z);
   S(h.arms[0].elbow.rotation, 'x', P.e0); S(h.arms[1].elbow.rotation, 'x', P.e1);
   S(h.spine.rotation, 'x', P.spineX); S(h.spine.rotation, 'y', P.spineY);
+  // abrir las piernas al montar y, si va de pasajero, ladearse un poco para no tapar la cabeza del conductor
+  S(h.legs[0].thigh.rotation, 'z', -splay); S(h.legs[1].thigh.rotation, 'z', splay);
+  S(h.spine.rotation, 'z', ride && lean ? lean : 0);
   S(h.hips.rotation, 'y', -P.spineY * .6);
   if (swim || h.hips.rotation.x) h.hips.rotation.x = lerp(h.hips.rotation.x, pitch, Math.min(1, dt * 6));
   if (Math.abs(h.hips.rotation.x) < .002) h.hips.rotation.x = 0;
@@ -705,7 +721,12 @@ export function animateHuman(h, dt, { speed, onGround, vy, land, t, gesture = 0,
     h.skinSkirt.rotation.x = Math.max(-1.6, Math.min(.25, a));
     h.skinSkirt.scale.set(1 + .04 * fwd, 1, 1 - .22 * fwd);
   }
-  if (h.skirt) { const sw = Math.max(Math.abs(h.legs[0].thigh.rotation.x), Math.abs(h.legs[1].thigh.rotation.x)); h.skirt.scale.z = .86 + sw * .75; h.skirt.scale.x = 1 + sw * .1; }
+  if (h.skirt) {
+    const sw = Math.max(Math.abs(h.legs[0].thigh.rotation.x), Math.abs(h.legs[1].thigh.rotation.x));
+    // montada la falda se recoge (antes se inflaba como un cono y tapaba el vehículo y al conductor)
+    h.skirt.scale.y = ride ? .42 : 1;
+    h.skirt.scale.z = ride ? 1.25 : .86 + sw * .75; h.skirt.scale.x = ride ? 1.3 : 1 + sw * .1;
+  }
   const blink = (t % 3.7) < .12;
   for (const e of h.eyes) e.scale.y = blink ? .15 : 1;
 }
