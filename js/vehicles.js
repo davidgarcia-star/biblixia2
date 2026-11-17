@@ -202,3 +202,13 @@ export function animateVehicle(v, dt, speed, t) {
 
 /* ---------- Tráfico decorativo: carros que van y vienen por las carreteras ---------- */
 export const TRAFFIC_COLORS = [0xf2f2f0, 0x1a1a1e, 0xc0392b, 0x2a4a9a, 0x8a9098, 0x2e7d4f, 0xe0a31a, 0x6a2a8a];
+// carros públicos (conchos): colores de ruta y letrero amarillo en el techo, como en RD
+export const PUBLICO_COLORS = [0xf2c21a, 0x2f8a4a, 0xf2f2f0, 0x2a5fb0, 0xd8d8d2];
+let publicoMat = null;
+export function addPublicoSign(obj) {
+  if (!publicoMat) publicoMat = new THREE.MeshStandardMaterial({ map: textTex('PÚBLICO', '#f5c518', '#111', 256, 64, '900 44px system-ui, sans-serif'), roughness: .6 });
+  obj.updateMatrixWorld(true);
+  const b = new THREE.Box3().setFromObject(obj), top = b.max.y - obj.position.y;
+  const s = new THREE.Mesh(new THREE.BoxGeometry(.9, .26, .34), [M.black, M.black, M.black, M.black, publicoMat, publicoMat]);
+  s.position.set(0, top + .13, -.1); s.rotation.y = Math.PI / 2; s.castShadow = false; obj.add(s);
+}

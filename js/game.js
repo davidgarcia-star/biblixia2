@@ -9,7 +9,7 @@ import { buildMasks, initFlats, buildLines, buildFarMesh, buildWater, Chunks, GF
 import { buildTown, buildAirport, buildPorts, buildStations, buildTolls, highwayPumps, streetSigns, buildPlace, decorateChunk, TOWNS, PUMPS, TOLL_LIST, facadeMat, NIGHT_MATS, label, DETAIL, padAt, FACADES } from './towns.js';
 // suelo = terreno, carretera o superficie construida (plaza, andén, pista, muelle): así los pies no se entierran
 const groundAt = (x, z) => { const g = groundAt0(x, z), p = padAt(x, z); return p > g.y - .02 ? { y: p, road: 'pad', main: false } : g; };
-import { makeVehicle, animateVehicle, KINDS, TRAFFIC_COLORS } from './vehicles.js';
+import { makeVehicle, animateVehicle, KINDS, TRAFFIC_COLORS, PUBLICO_COLORS, addPublicoSign } from './vehicles.js';
 import { buildBaseMap, drawMap } from './maps.js';
 import { findRoute, closestOnRoute } from './route.js';
 import { initGente, updateGente, CITY_LOOPS } from './gente.js';
@@ -682,7 +682,9 @@ function updateTraffic(dt) {
     c.s += c.dir * c.cur * dt; const L = c.line.cum[c.line.cum.length - 1];
     if (c.line.loop) c.s = ((c.s % L) + L) % L;
     else if (c.s < 0 || c.s > L) { c.dir *= -1; c.s = clamp(c.s, 0, L); }
-    const p = linePos(c.line, c.s), side = c.line.loop ? -1 : c.dir > 0 ? 1 : -1, off = (c.line.loop ? 2.2 * c.dir : c.line.w * .22) * side;
+    // en RD se maneja por la DERECHA: cada carro va en el carril derecho según su sentido
+    // (en las avenidas grandes hay 2 carriles por sentido: motos, guaguas y camionetas por el de afuera)
+    const p = linePos(c.line, c.s), side = c.line.loop ? -1 : c.dir > 0 ? -1 : 1, off = (c.line.loop ? 2.2 * c.dir : c.line.w * (c.lane || .25)) * side;
     c.obj.position.set(p.x + Math.cos(p.yaw) * off, p.y + .2, p.z - Math.sin(p.yaw) * off);
     c.obj.rotation.set(0, c.dir > 0 ? p.yaw : p.yaw + Math.PI, 0);
     animateVehicle(c.obj, dt, c.cur, clockT);
@@ -696,12 +698,17 @@ function updateTraffic(dt) {
     else { const r = nearRoad(P.pos.x + (Math.random() - .5) * 2400, P.pos.z + (Math.random() - .5) * 2400, 1500); if (r && r.kind === 'road') { line = LINES.roads[r.s.line]; s = line.cum[r.s.i] + (Math.random() - .5) * 200; } }
     if (!line) continue;
     const q = linePos(line, s); if (Math.hypot(q.x - P.pos.x, q.z - P.pos.z) < 120) continue;
-    const kinds = ['carro', 'camioneta', 'jeepeta', 'moto', 'moto', 'guagua', 'carro', 'jeepeta'], k = kinds[Math.floor(Math.random() * kinds.length)];
-    const obj = makeVehicle(k, TRAFFIC_COLORS[Math.floor(Math.random() * TRAFFIC_COLORS.length)]);
+    // mezcla como en las calles dominicanas: muchos motores (motoconchos), carros públicos y guaguas
+    const kinds = ['carro', 'publico', 'moto', 'moto', 'moto', 'guagua', 'jeepeta', 'camioneta', 'publico', 'carro', 'moto', 'jeepeta'], pick = kinds[Math.floor(Math.random() * kinds.length)];
+    const k = pick === 'publico' ? 'carro' : pick;
+    const obj = makeVehicle(k, pick === 'publico' ? PUBLICO_COLORS[Math.floor(Math.random() * PUBLICO_COLORS.length)] : TRAFFIC_COLORS[Math.floor(Math.random() * TRAFFIC_COLORS.length)]);
+    if (pick === 'publico') addPublicoSign(obj);
     if (k === 'moto' || k === 'guagua') bakeInPlace(obj, obj.userData.wheels);
     obj.traverse(o => { if (o.isMesh) o.castShadow = false; });
     scene.add(obj);
-    TRAFFIC.push({ obj, kind: k, line, s, dir: Math.random() < .5 ? 1 : -1, spd: line.loop ? 7 + Math.random() * 5 : KINDS[k].max * (.45 + Math.random() * .3) });
+    const outer = k === 'moto' || k === 'guagua' || k === 'camioneta' || pick === 'publico' || Math.random() < .5;
+    const lane = line.main ? (outer ? .37 : .13) : .25;
+    TRAFFIC.push({ obj, kind: k, line, s, lane, dir: Math.random() < .5 ? 1 : -1, spd: line.loop ? 7 + Math.random() * 5 : KINDS[k].max * (outer ? .4 + Math.random() * .2 : .55 + Math.random() * .25) });
   }
 }
 function updateTrains(dt) {
