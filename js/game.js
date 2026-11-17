@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
-import { VERSES } from './verses.js';
+import { VERSES, VERSES_OLD } from './verses.js';
 import { createHuman, animateHuman } from './human.js';
 import { CHARACTERS, createCharacter, nameSprite } from './characters.js';
 import { Sound2 } from './audio2.js';
@@ -25,6 +25,8 @@ const SAVE_KEY = 'biblixia2_v1';
 const isTouch = matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
 let save = { player: null, time: 'dia', done: {}, gifts: [], verses: [], deliveries: 0, stars: 0, pos: null, mission: null, fuel: {}, best: {} };
 try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s) save = Object.assign(save, s); } catch (e) {}
+// versículos cortos (lista nueva): se pasan los ya leídos de la lista anterior
+if (save.versesV !== 2) { save.verses = [...new Set((save.verses || []).map(i => VERSES_OLD[i]).filter(i => i >= 0))]; save.versesV = 2; }
 const persist = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {} };
 const fmtKm = u => (u / KM).toFixed(u / KM < 10 ? 1 : 0) + ' km';
 const fmtT = s => { s = Math.max(0, Math.ceil(s)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), ss = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(ss).padStart(2, '0'); };
