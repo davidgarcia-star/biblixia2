@@ -264,3 +264,22 @@ body.driving #prompt { bottom: 128px; }
 #splash { justify-content: safe center; padding-top: calc(var(--tb-h, 60px) + 14px); }
 .screen::-webkit-scrollbar { width: 8px; } .screen::-webkit-scrollbar-thumb { background: rgba(245,197,66,.6); border-radius: 8px; } .screen::-webkit-scrollbar-track { background: transparent; }
 @media (max-height: 520px) { .topbar .chip-txt { display: none; } .topbar .chip { padding: 6px 10px; } }
+
+/* Niveles (Básico, Intermedio, Avanzado) */
+.lvlist { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; width: min(980px, 100%); }
+.lvcard { --lv: var(--oro); text-align: left; border: 1px solid var(--borde); border-top: 5px solid var(--lv); border-radius: 20px; padding: 14px 16px; background: linear-gradient(180deg, rgba(20,48,100,.88), rgba(8,22,52,.92)); display: flex; flex-direction: column; gap: 6px; transition: transform .15s, border-color .15s; color: var(--txt); }
+.lvcard:hover, .lvcard.sel { transform: translateY(-3px); border-color: var(--lv); }
+.lvcard .lv-top { display: flex; align-items: center; gap: 8px; }
+.lvcard .lv-top b { font-size: 20px; } .lvcard .lv-ic { font-size: 22px; }
+.lvcard .lv-top em { margin-left: auto; font-style: normal; font-size: 12px; font-weight: 800; color: #7ef0a4; }
+.lvcard p { margin: 0; font-size: 13px; opacity: .88; line-height: 1.35; }
+.lvcard small { font-size: 12px; opacity: .8; }
+.lv-bar { height: 7px; border-radius: 6px; background: rgba(255,255,255,.12); overflow: hidden; margin-top: 4px; }
+.lv-bar i { display: block; height: 100%; background: var(--lv); border-radius: 6px; }
+.lv-b3 { width: min(980px, 100%); margin: 14px 0; padding: 10px 14px; border-radius: 14px; border: 1px dashed rgba(255,211,77,.5); background: rgba(255,211,77,.08); text-align: center; font-size: 14px; }
+.lv-b3 a { color: var(--oro); font-weight: 800; }
+.lv-now { color: var(--oro); }
+.vlist .preg { margin: 12px 0 2px; }
+.sp-link small { font-weight: 600; opacity: .8; font-size: 11px; margin-left: 4px; }
+.sp-link.b3-link.locked { opacity: .7; border-style: dashed; }
+.res-b3 { color: #ffd34d; }

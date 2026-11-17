@@ -39,7 +39,7 @@
 <meta name="twitter:image" content="https://davidgarcia-star.github.io/biblixia2/img/og-biblixia2.jpg?v=20261117">
 <meta name="twitter:image:alt" content="BIBLIXIA 2 – Juego bíblico 3D en el mapa de República Dominicana">
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "VideoGame", "name": "BIBLIXIA 2", "alternateName": ["Biblixia 2", "BIBLIXIA 2 República Dominicana", "Biblixia 2 juego bíblico", "Juego de la Biblia BIBLIXIA 2"], "description": "Juego bíblico cristiano en 3D en el mapa de República Dominicana: lleva a los personajes de la Biblia a las 32 provincias.", "url": "https://davidgarcia-star.github.io/biblixia2/", "inLanguage": "es", "genre": ["Juego bíblico", "Educativo", "Aventura 3D", "Conducción", "Juego cristiano", "Juego educativo"], "gamePlatform": ["Navegador web", "Android", "iOS", "PC"], "isAccessibleForFree": true, "author": {"@type": "Person", "name": "Luis David Esteban García"}, "publisher": {"@type": "Organization", "name": "MIPROAA – Ministerio Profético Ardiendo por el Avivamiento", "url": "https://davidgarcia-star.github.io/luisdavidgarcia/"}, "keywords": "BIBLIXIA 2, juego bíblico 3D, juego bíblico República Dominicana, juego bíblico, juego biblico, juegos bíblicos, juegos biblicos, juego de la Biblia, juegos de la Biblia, juego de la Biblia gratis, desafío bíblico, desafio biblico, juego bíblico gratis, juegos bíblicos gratis, juego bíblico online, juego bíblico para niños, juego bíblico para jóvenes, juego bíblico para la iglesia, juego cristiano, juegos cristianos, trivia bíblica, preguntas bíblicas, preguntas y respuestas de la Biblia", "isRelatedTo": [{"@type": "VideoGame", "name": "Desafío Bíblico RD", "url": "https://davidgarcia-star.github.io/luisdavidgarcia/juego-biblico/"}, {"@type": "VideoGame", "name": "Desafío Bíblico RD 2", "url": "https://davidgarcia-star.github.io/luisdavidgarcia/desafio-biblico-rd-2/"}, {"@type": "VideoGame", "name": "BIBLIXIA", "url": "https://davidgarcia-star.github.io/biblixia/"}]}</script>
-<link rel="stylesheet" href="css/style.css?v=20261116a">
+<link rel="stylesheet" href="css/style.css?v=20261117b">
 <script>
 /* Navidad: adornos y villancicos del 1 de noviembre al 9 de enero */
 window.NAVIDAD_CFG = {
@@ -135,8 +135,8 @@ window.NAVIDAD_CFG = {
     </header>
     <div class="sp-transport" aria-hidden="true"><span>🏍️</span><span>🚗</span><span>🚌</span><span>🐎</span><span>🫏</span><span>🚲</span><span>🚆</span><span>✈️</span><span>🚁</span><span>🚤</span></div>
     <nav class="sp-menu">
-      <button class="sp-main" id="btnPlay"><span>▶ JUGAR</span><small>Elige una provincia y a quién deseas llevar</small></button>
-      <button class="sp-tile" id="btnMissionsMenu"><b>🇩🇴</b>Elegir provincia<small>Las 32 provincias</small></button>
+      <button class="sp-main" id="btnPlay"><span>▶ JUGAR</span><small>Elige el nivel, la provincia y a quién deseas llevar</small></button>
+      <button class="sp-tile" id="btnMissionsMenu"><b>🎯</b>Niveles<small>Básico · Intermedio · Avanzado</small></button>
       <button class="sp-tile" id="btnFree"><b>🚗</b>Paseo libre<small>Recorre el país</small></button>
       <button class="sp-tile" id="btnCharacter"><b>🧑</b>Mi personaje<small>Ropa y nombre</small></button>
       <button class="sp-tile" id="btnCollection"><b>🏆</b>Colección<small>Personajes y versículos</small></button>
@@ -146,6 +146,7 @@ window.NAVIDAD_CFG = {
     <div class="sp-links">
       <a class="sp-link" href="https://davidgarcia-star.github.io/biblixia/" rel="noopener">✨ BIBLIXIA 1</a>
       <a class="sp-link" href="https://davidgarcia-star.github.io/luisdavidgarcia/juego-biblico/" rel="noopener">📖 DESAFÍO BÍBLICO RD</a>
+      <a class="sp-link b3-link locked" id="b3Link" href="https://davidgarcia-star.github.io/luisdavidgarcia/biblixia3/" rel="noopener">🔒 BIBLIXIA 3 <small>3 misiones</small></a>
     </div>
     <a class="btn-paypal" href="https://www.paypal.me/luisdavidgarciaMCP?locale.x=es_XC&amp;country.x=DO" target="_blank" rel="noopener noreferrer">💛 HONRAR AL CREADOR DEL JUEGO VÍA PAYPAL</a>
     <div class="sp-social">
@@ -199,10 +200,19 @@ window.NAVIDAD_CFG = {
   </div>
 </div>
 
+<div class="screen hidden scroll" id="levels">
+  <h2>🎯 Elige tu nivel</h2>
+  <p class="sub">BIBLIXIA 2 tiene 3 niveles. Cada uno tiene sus propios personajes bíblicos y su tipo de viaje.</p>
+  <div class="lvlist" id="lvList"></div>
+  <p class="lv-b3" id="lvB3"></p>
+  <button class="btn ghost" id="lvBack">Volver</button>
+</div>
+
 <div class="screen hidden scroll" id="provsel">
   <h2>🇩🇴 Elige una provincia</h2>
-  <p class="sub">Escoge una de las 32 provincias de República Dominicana y luego a quién deseas llevar desde allí.</p>
-  <div class="row2 wrap"><button class="btn" id="pNear">📍 Cerca de mí</button><button class="btn ghost hidden" id="pCancel">✖ Cancelar misión actual</button><button class="btn ghost" id="pBack">Volver</button></div>
+  <p class="sub lv-now" id="pLevel"></p>
+  <p class="sub">Cada provincia muestra cuántos personajes de este nivel salen desde allí. Escoge una y luego a quién deseas llevar.</p>
+  <div class="row2 wrap"><button class="btn ghost" id="pLevelBtn">🎯 Cambiar nivel</button><button class="btn" id="pNear">📍 Cerca de mí</button><button class="btn ghost hidden" id="pCancel">✖ Cancelar misión actual</button><button class="btn ghost" id="pBack">Volver</button></div>
   <div class="plist" id="pList"></div>
 </div>
 
@@ -237,7 +247,7 @@ window.NAVIDAD_CFG = {
     <div class="stars" id="resStars"></div>
     <h2 id="resTitle"></h2>
     <p class="sub" id="resText"></p>
-    <div class="row2 wrap"><button class="btn" id="btnResNext">📋 Siguiente misión</button><button class="btn ghost" id="btnResFree">🚗 Seguir paseando</button></div>
+    <div class="row2 wrap"><button class="btn" id="btnResNext">📋 Siguiente misión</button><button class="btn ghost" id="btnResFree">🚗 Seguir paseando</button><button class="btn hidden" id="btnResB3" type="button">🏃 Jugar BIBLIXIA 3</button></div>
   </div>
 </div>
 
@@ -282,7 +292,7 @@ window.NAVIDAD_CFG = {
   var abierto = hechos >= NIVELES.length;
   try { if (new URLSearchParams(location.search).get('probar') === 'luisdavid') abierto = true; } catch (e) {}
   if (abierto) {
-    var m = document.createElement('script'); m.type = 'module'; m.src = 'js/biblixia2.min.js?v=20261117a';
+    var m = document.createElement('script'); m.type = 'module'; m.src = 'js/biblixia2.min.js?v=20261117b';
     document.body.appendChild(m);
     return;
   }

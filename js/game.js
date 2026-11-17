@@ -4,7 +4,7 @@ import { VERSES } from './verses.js';
 import { createHuman, animateHuman } from './human.js';
 import { CHARACTERS, createCharacter, nameSprite } from './characters.js';
 import { Sound2 } from './audio2.js';
-import { PROVINCES, PROV, AIRPORTS, PLACES, MISSIONS, BOUNDS, toXZ, KM, ZONES } from './rd-data.js';
+import { PROVINCES, PROV, AIRPORTS, PLACES, MISSIONS, NIVELES, BOUNDS, toXZ, KM, ZONES } from './rd-data.js';
 import { buildMasks, initFlats, buildLines, buildFarMesh, buildWater, Chunks, GFX, linesInChunk, riversInChunk, heightAt, groundAt as groundAt0, H0, inHaiti, typeAt, LINES, linePos, nearRoad, CH } from './terrain.js';
 import { buildTown, buildAirport, buildPorts, buildStations, buildTolls, highwayPumps, streetSigns, buildPlace, decorateChunk, TOWNS, PUMPS, TOLL_LIST, facadeMat, NIGHT_MATS, label, DETAIL, padAt, FACADES } from './towns.js';
 // suelo = terreno, carretera o superficie construida (plaza, andén, pista, muelle): así los pies no se entierran
@@ -305,11 +305,41 @@ function input() {
    MISIONES
    ========================================================= */
 const CHAR = Object.fromEntries(CHARACTERS.map(c => [c.id, c]));
-/* BIBLIXIA 3 se desbloquea cuando se llevan TODOS los personajes (se guarda en este navegador) */
-const checkB2Done = () => { try { const ids = MISSIONS.map(m => m.who).filter(w => CHAR[w]);
-  if (ids.length && ids.every(w => save.done[w] !== undefined) && localStorage.getItem('biblixia2_completado') !== 'si') {
-    localStorage.setItem('biblixia2_completado', 'si'); try { toast('🏆 ¡Terminaste BIBLIXIA 2! BIBLIXIA 3 ya está desbloqueado', '#ffd166', true); } catch (e) {} } } catch (e) {} };
-checkB2Done();
+/* BIBLIXIA 3 se desbloquea al pasar 3 misiones (llegar a tiempo con 3 personajes distintos).
+   Se calcula del avance guardado (biblixia2_v1), que también viaja con la cuenta de jugador. */
+const B3_URL = 'https://davidgarcia-star.github.io/luisdavidgarcia/biblixia3/', B3_META = 3;
+const b3Passed = () => Object.values(save.done).filter(s => s > 0).length;
+const b3Open = () => b3Passed() >= B3_META;
+function updB3Link() {
+  const a = $('b3Link'); if (!a) return; const ok = b3Open();
+  a.classList.toggle('locked', !ok);
+  a.innerHTML = ok ? '🏃 BIBLIXIA 3 <small>¡Desbloqueado!</small>' : `🔒 BIBLIXIA 3 <small>${Math.min(b3Passed(), B3_META)} de ${B3_META} misiones</small>`;
+}
+// devuelve true solo la primera vez que se desbloquea
+const checkB3 = () => { try { if (b3Open() && localStorage.getItem('biblixia3_desbloqueado') !== 'si') { localStorage.setItem('biblixia3_desbloqueado', 'si'); updB3Link(); return true; } } catch (e) {} updB3Link(); return false; };
+checkB3();
+/* NIVELES: Básico, Intermedio y Avanzado. Cada personaje es de un nivel; el nivel decide el largo del viaje y el tiempo. */
+const NIV = Object.fromEntries(NIVELES.map(n => [n.id, n]));
+const nivelOf = m => NIV[m.nivel] || NIVELES[0];
+let curNivel = NIV[save.nivel] ? save.nivel : 'basico';
+const timeFor = (dist, m) => Math.round((dist / 24 + 150) * nivelOf(m).factor);
+const levelMissions = id => MISSIONS.filter(m => m.nivel === id && CHAR[m.who]);
+const levelProgress = id => { const L = levelMissions(id); return { total: L.length, done: L.filter(m => save.done[m.who] > 0).length, stars: L.reduce((a, m) => a + (save.done[m.who] || 0), 0) }; };
+// provincias desde donde puede salir cada personaje, según el largo de viaje de su nivel
+let ORIG = null;
+function origins() {
+  if (ORIG) return ORIG;
+  const o = {};
+  for (const m of MISSIONS) {
+    const d = destOf(m.dest), n = nivelOf(m);
+    const ok = PROVINCES.filter(p => p.id !== m.dest && !(d.place && d.place.prov === p.id)).map(p => ({ p, km: tripKm(p, d) / KM })).filter(q => q.km >= 12);
+    let list = ok.filter(q => q.km >= n.min && q.km < n.max);
+    if (list.length < 2) list = ok.sort((a, b) => n.id === 'avanzado' ? b.km - a.km : a.km - b.km).slice(0, 3);
+    o[m.who] = new Set(list.map(q => q.p.id));
+  }
+  if (PROVINCES[0].px !== undefined) ORIG = o; // ya con las plazas reales de cada pueblo
+  return o;
+}
 const destOf = id => { const p = PROV[id]; if (p) return { x: p.px ?? p.x, z: p.pz ?? p.z, name: p.name, full: 'provincia ' + p.name, r: 230, prov: true }; const pl = PLACES.find(q => q.id === id); return { x: pl.x, z: pl.z, name: pl.name, full: pl.name, r: 260, place: pl }; };
 // kilómetros del viaje según el mapa real: de la plaza de la provincia al destino (San Cristóbal → Santo Domingo ≈ 20 km)
 const tripKm = (p, d) => Math.hypot((p.px ?? p.x) - d.x, (p.pz ?? p.z) - d.z);
@@ -318,16 +348,16 @@ let waiting = null, passenger = null;
 const PAX = { pos: new THREE.Vector3(), heading: 0, speed: 0 };
 function nearestProvinces(x, z) { return PROVINCES.slice().sort((a, b) => Math.hypot(a.x - x, a.z - z) - Math.hypot(b.x - x, b.z - z)); }
 function missionOffers() {
-  const all = MISSIONS.filter(m => CHAR[m.who]);
+  const all = levelMissions(curNivel);
   const fresh = all.filter(m => !save.done[m.who]); const pool = (fresh.length >= 3 ? fresh : all).slice().sort(() => Math.random() - .5);
-  const near = nearestProvinces(P.pos.x, P.pos.z);
+  const near = nearestProvinces(P.pos.x, P.pos.z), O = origins();
   const out = [];
   for (const m of pool) {
     const d = destOf(m.dest);
-    const pick = near.slice(0, 7).find(p => Math.hypot(p.x - d.x, p.z - d.z) > 9000 && !(d.place && d.place.prov === p.id) && p.id !== m.dest) || near.find(p => Math.hypot(p.x - d.x, p.z - d.z) > 9000);
+    const pick = near.find(p => O[m.who].has(p.id)); // la provincia más cercana desde donde sale en su nivel
     if (!pick) continue;
     const dist = tripKm(pick, d);
-    out.push({ m, def: CHAR[m.who], pick, dest: d, dist, time: Math.round(dist / 24 + 150) });
+    out.push({ m, def: CHAR[m.who], pick, dest: d, dist, time: timeFor(dist, m) });
     if (out.length === 3) break;
   }
   return out.sort((a, b) => a.dist - b.dist);
@@ -343,7 +373,7 @@ function startMission(o) {
 function resumeMission() {
   const s = save.mission; if (!s) return;
   const m = MISSIONS.find(q => q.who === s.who && q.dest === s.dest), p = PROV[s.pick]; if (!m || !p || !CHAR[m.who]) { save.mission = null; return; }
-  const d = destOf(m.dest), dist = Math.hypot(p.x - d.x, p.z - d.z), total = Math.round(dist / 24 + 150);
+  const d = destOf(m.dest), dist = tripKm(p, d), total = timeFor(dist, m);
   M = { m, def: CHAR[m.who], pick: { x: p.px + 14, z: p.pz + 22, prov: p }, dest: d, phase: 'pick', time: s.time ?? total, total, late: !!s.late, talk: 0, line: 0, km: tripKm(p, d) };
   if (s.phase === 'ride') { M.phase = 'ride'; boardPassengerNow(); } else spawnWaiting();
   updMissionHUD();
@@ -387,7 +417,7 @@ function arrive() {
   const def = M.def, ontime = !M.late, frac = M.time / M.total;
   const st = ontime ? (frac > .4 ? 3 : frac > .15 ? 2 : 1) : 0;
   save.deliveries++; save.stars += st;
-  save.done[def.id] = Math.max(save.done[def.id] || 0, st); checkB2Done();
+  save.done[def.id] = Math.max(save.done[def.id] || 0, st); M.b3New = checkB3();
   if (ontime && !save.gifts.includes(def.id)) save.gifts.push(def.id);
   save.mission = null; persist(); sound.cash(); sound.win();
   const msg = def.msg;
@@ -402,7 +432,10 @@ function clearMission(silent) { if (waiting) { scene.remove(waiting); waiting = 
 function showResult(st, got) {
   state = 'result'; $('resStars').textContent = st ? '★'.repeat(st) + '☆'.repeat(3 - st) : '⏰';
   $('resTitle').textContent = st ? '¡Entrega completada!' : 'Entrega tarde';
-  $('resText').innerHTML = `Llevaste a <b>${M.def.name}</b> a <b>${M.dest.name}</b>.<br>${got ? `💎 Tesoro: <b>${M.def.emoji || '🎁'} ${M.def.gift}</b><br>` : ''}Tesoros: <b>${save.gifts.length}</b> de ${MISSIONS.length} · Entregas: ${save.deliveries}`;
+  const n = nivelOf(M.m), lp = levelProgress(n.id);
+  const b3 = M.b3New ? '<br><b class="res-b3">🎉 ¡Desbloqueaste BIBLIXIA 3! Ya puedes jugarlo.</b>' : b3Open() ? '' : `<br>🏃 BIBLIXIA 3: <b>${b3Passed()} de ${B3_META}</b> misiones pasadas a tiempo`;
+  $('resText').innerHTML = `Llevaste a <b>${M.def.name}</b> a <b>${M.dest.name}</b>.<br>${got ? `💎 Tesoro: <b>${M.def.emoji || '🎁'} ${M.def.gift}</b><br>` : ''}${n.icon} Nivel ${n.name}: <b>${lp.done} de ${lp.total}</b> personajes${lp.done === lp.total ? ' · ✅ ¡Nivel completado!' : ''}<br>Tesoros: <b>${save.gifts.length}</b> de ${MISSIONS.length} · Entregas: ${save.deliveries}${b3}`;
+  $('btnResB3').classList.toggle('hidden', !b3Open());
   M = null; updMissionHUD(); show('result');
 }
 // conversación durante el viaje: el personaje cuenta su historia (voz de hombre o de mujer)
@@ -778,7 +811,7 @@ function updMissionHUD() {
   const c = $('mCard');
   if (!M) { c.classList.add('idle'); $('mWho').textContent = 'Sin misión'; $('mTxt').innerHTML = 'Pulsa <b>📋 Misiones</b> para elegir un viaje'; $('mTime').textContent = '—'; $('mBar').style.width = '0%'; return; }
   c.classList.remove('idle');
-  $('mWho').textContent = (M.def.emoji || '🙏') + ' ' + M.def.name.split(' (')[0];
+  $('mWho').textContent = nivelOf(M.m).icon + ' ' + (M.def.emoji || '🙏') + ' ' + M.def.name.split(' (')[0];
   $('mTxt').innerHTML = M.phase === 'pick' ? `Recógelo en <b>${M.pick.prov.name}</b>` : `Llévalo a <b>${M.dest.name}</b> · 📏 ${fmtKm(M.km)}`;
 }
 let provNow = null, provT = 0;
@@ -1023,7 +1056,7 @@ function menuFly(dt) {
 /* =========================================================
    MENÚS
    ========================================================= */
-const SCREENS = ['splash', 'help', 'creator', 'provsel', 'missions', 'collection', 'pause', 'result'];
+const SCREENS = ['splash', 'help', 'creator', 'levels', 'provsel', 'missions', 'collection', 'pause', 'result'];
 function show(id) { SCREENS.forEach(s => $(s).classList.toggle('hidden', s !== id)); const playing = id === null; $('hud').classList.toggle('hidden', !playing); $('touch').classList.toggle('hidden', !playing || !isTouch); $('topbar').classList.toggle('hidden', playing); }
 function play() {
   document.body.classList.add('ingame'); show(null); state = 'play'; ensureMusic(); sound.setMusicMode('play'); updMissionHUD();
@@ -1045,8 +1078,8 @@ async function enterGame(then) {
   play(); if (then) then();
 }
 // Portada
-$('btnPlay').onclick = () => { sound.click(); sound.unlock(); if (save.mission && !M) { enterGame(); return; } if (!save.player.name) { openCreator(openProvinces); return; } state = 'menu'; openProvinces(); };
-$('btnMissionsMenu').onclick = () => { sound.click(); if (!save.player.name) { openCreator(openProvinces); return; } state = 'menu'; openProvinces(); };
+$('btnPlay').onclick = () => { sound.click(); sound.unlock(); if (save.mission && !M) { enterGame(); return; } if (!save.player.name) { openCreator(openLevels); return; } state = 'menu'; openLevels(); };
+$('btnMissionsMenu').onclick = () => { sound.click(); if (!save.player.name) { openCreator(openLevels); return; } state = 'menu'; openLevels(); };
 $('btnFree').onclick = () => { sound.click(); enterGame(() => { if (M) clearMission(); toast('🚗 Paseo libre: recorre el país a tu gusto', '#7ef0a4'); }); };
 $('btnCharacter').onclick = () => { sound.click(); openCreator(); };
 $('btnCollection').onclick = () => { sound.click(); renderCollection(); show('collection'); state = 'menu'; };
@@ -1054,27 +1087,48 @@ $('btnHelp').onclick = () => { sound.click(); show('help'); };
 document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => { sound.click(); show(b.dataset.go); state = 'menu'; });
 // Misiones
 // Solicitudes para una provincia elegida: todos los personajes que pueden salir desde allí
-function offersFor(p) {
-  const out = [];
-  for (const m of MISSIONS) {
-    const def = CHAR[m.who]; if (!def) continue;
-    const d = destOf(m.dest); if (m.dest === p.id || (d.place && d.place.prov === p.id)) continue;
-    const dist = tripKm(p, d); if (dist < 6000) continue;
-    out.push({ m, def, pick: p, dest: d, dist, time: Math.round(dist / 24 + 150) });
+function offersFor(p, niv = curNivel) {
+  const out = [], O = origins();
+  for (const m of levelMissions(niv)) {
+    if (!O[m.who].has(p.id)) continue;
+    const def = CHAR[m.who], d = destOf(m.dest), dist = tripKm(p, d);
+    out.push({ m, def, pick: p, dest: d, dist, time: timeFor(dist, m) });
   }
   return out.sort((a, b) => (save.done[a.def.id] !== undefined) - (save.done[b.def.id] !== undefined) || a.dist - b.dist);
 }
 let missionProv = null;
+// Pantalla de niveles: Básico, Intermedio y Avanzado
+function openLevels() {
+  if (state === 'play') state = 'pause';
+  const box = $('lvList'); box.innerHTML = '';
+  for (const n of NIVELES) {
+    const pr = levelProgress(n.id), pct = pr.total ? Math.round(pr.done / pr.total * 100) : 0, b = document.createElement('button');
+    b.className = 'lvcard' + (n.id === curNivel ? ' sel' : '') + (pr.done === pr.total ? ' full' : ''); b.style.setProperty('--lv', n.color);
+    b.innerHTML = `<div class="lv-top"><span class="lv-ic">${n.icon}</span><b>${n.name}</b>${pr.done === pr.total ? '<em>✅ Completado</em>' : ''}</div>
+      <p>🙏 ${n.who}</p><p>📏 ${n.trip}</p><p>⏱ ${n.clock}</p>
+      <div class="lv-bar"><i style="width:${pct}%"></i></div>
+      <small>${pr.done} de ${pr.total} personajes llevados a tiempo · ⭐ ${pr.stars} de ${pr.total * 3}</small>`;
+    b.onclick = () => { sound.click(); curNivel = n.id; save.nivel = n.id; persist(); openProvinces(); };
+    box.appendChild(b);
+  }
+  const ok = b3Open();
+  $('lvB3').innerHTML = ok ? `🏃 <b>BIBLIXIA 3 está desbloqueado.</b> <a href="${B3_URL}" rel="noopener">Jugar BIBLIXIA 3</a>` : `🔒 Pasa <b>${B3_META} misiones</b> a tiempo en cualquier nivel para desbloquear <b>BIBLIXIA 3</b>. Llevas ${b3Passed()} de ${B3_META}.`;
+  show('levels');
+}
+$('lvBack').onclick = () => { sound.click(); if (document.body.classList.contains('ingame')) play(); else { show('splash'); state = 'menu'; } };
 function openProvinces() {
   if (state === 'play') state = 'pause';
-  const box = $('pList'); box.innerHTML = '';
+  const box = $('pList'); box.innerHTML = ''; const nv = NIV[curNivel], pr = levelProgress(curNivel);
+  $('pLevel').innerHTML = `${nv.icon} Nivel <b>${nv.name}</b> · ${nv.trip} · ${nv.clock} · ${pr.done} de ${pr.total} personajes`;
   // provincias organizadas por Norte, Sur, Este y Oeste
   for (const [r, ic] of ZONES) {
+    const provs = PROVINCES.filter(q => q.zone === r).map(p => [p, offersFor(p)]).filter(([, o]) => o.length).sort((a, b) => a[0].name.localeCompare(b[0].name, 'es'));
+    if (!provs.length) continue; // en este nivel no sale nadie desde esta zona
     const h = document.createElement('h3'); h.className = 'preg'; h.textContent = `${ic} ${r}`; box.appendChild(h);
     const grid = document.createElement('div'); grid.className = 'pgrid'; box.appendChild(grid);
-    for (const p of PROVINCES.filter(q => q.zone === r).sort((a, b) => a.name.localeCompare(b.name, 'es'))) {
-      const n = offersFor(p).length, b = document.createElement('button'); b.className = 'pcard';
-      b.innerHTML = `<b>${p.name}</b><small>${p.cap}</small><span>🙏 ${n} personajes</span>`;
+    for (const [p, o] of provs) {
+      const n = o.length, nuevos = o.filter(q => !(save.done[q.def.id] > 0)).length, b = document.createElement('button'); b.className = 'pcard';
+      b.innerHTML = `<b>${p.name}</b><small>${p.cap}</small><span>🙏 ${n} personaje${n === 1 ? '' : 's'}${nuevos ? '' : ' · ✅'}</span>`;
       b.onclick = () => { sound.click(); openMissions(p); };
       grid.appendChild(b);
     }
@@ -1087,7 +1141,7 @@ function openMissions(prov) {
   missionProv = prov || null;
   const list = prov ? offersFor(prov) : missionOffers(), box = $('mList'); box.innerHTML = '';
   if (state === 'play') state = 'pause';
-  $('mTitle').textContent = prov ? `📍 ${prov.name} · ¿A quién deseas llevar?` : '📋 Solicitudes de viaje cerca de ti';
+  $('mTitle').textContent = (prov ? `📍 ${prov.name} · ¿A quién deseas llevar?` : '📋 Solicitudes de viaje cerca de ti') + ` · ${NIV[curNivel].icon} ${NIV[curNivel].name}`;
   $('mSub').textContent = prov ? `Los personajes te esperan en la plaza de ${prov.cap}. El tiempo empieza cuando el personaje sube contigo.` : 'Elige a quién llevar. El tiempo empieza cuando el personaje sube contigo.';
   for (const o of list) {
     const mins = Math.round(o.time / 60), lvl = o.dist < 25000 ? ['Corto', 'c'] : o.dist < 60000 ? ['Medio', 'm'] : ['Largo', 'l'];
@@ -1121,6 +1175,7 @@ $('mBack').onclick = () => { sound.click(); if (missionProv) openProvinces(); el
 $('mCancel').onclick = () => { sound.click(); clearMission(); toast('Misión cancelada', '#ffd34d'); openProvinces(); };
 $('pCancel').onclick = () => { sound.click(); clearMission(); toast('Misión cancelada', '#ffd34d'); openProvinces(); };
 $('pNear').onclick = () => { sound.click(); openMissions(); };
+$('pLevelBtn').onclick = () => { sound.click(); openLevels(); };
 $('pBack').onclick = () => { sound.click(); if (document.body.classList.contains('ingame')) play(); else { show('splash'); state = 'menu'; } };
 $('btnMissions').onclick = () => { sound.click(); openProvinces(); };
 // Pausa
@@ -1132,6 +1187,7 @@ $('btnPauseMissions').onclick = () => { sound.click(); openProvinces(); };
 $('btnPauseHome').onclick = () => { sound.click(); goHome(); };
 $('btnPauseExit').onclick = exitGame;
 $('btnResNext').onclick = () => { sound.click(); openProvinces(); };
+$('btnResB3').onclick = () => { sound.click(); persist(); location.href = B3_URL; };
 $('btnResFree').onclick = () => { sound.click(); play(); };
 $('btnMap').onclick = () => { sound.click(); openMap(); }; mini.addEventListener('click', () => openMap());
 $('bigmapClose').onclick = () => { sound.click(); closeMap(); };
@@ -1146,7 +1202,8 @@ function renderCollection() {
   if (colTab === 'chars') {
     const list = MISSIONS.map(m => CHAR[m.who]).filter(Boolean);
     $('colCount').textContent = `💎 ${save.gifts.length} de ${list.length} tesoros bíblicos · ${Object.keys(save.done).length} personajes llevados · ${save.deliveries} entregas · ⭐ ${save.stars}`;
-    for (const d of list) { const s = save.done[d.id]; const e = document.createElement('div'); e.className = 'vitem gift' + (s === undefined ? ' lock' : ''); e.innerHTML = `<span class="ge">${s === undefined ? '🔒' : d.emoji || '🙏'}</span><div><b>${d.name}</b><small>${d.kind}${s !== undefined ? ' · ' + '★'.repeat(s) + '☆'.repeat(3 - s) : ''}</small>${s !== undefined && save.gifts.includes(d.id) ? `<p>💎 ${d.gift}</p>` : ''}</div>`; box.appendChild(e); }
+    for (const n of NIVELES) { const pr = levelProgress(n.id), h = document.createElement('h3'); h.className = 'preg'; h.textContent = `${n.icon} Nivel ${n.name} · ${pr.done} de ${pr.total}`; box.appendChild(h);
+    for (const d of levelMissions(n.id).map(m => CHAR[m.who])) { const s = save.done[d.id]; const e = document.createElement('div'); e.className = 'vitem gift' + (s === undefined ? ' lock' : ''); e.innerHTML = `<span class="ge">${s === undefined ? '🔒' : d.emoji || '🙏'}</span><div><b>${d.name}</b><small>${d.kind}${s !== undefined ? ' · ' + '★'.repeat(s) + '☆'.repeat(3 - s) : ''}</small>${s !== undefined && save.gifts.includes(d.id) ? `<p>💎 ${d.gift}</p>` : ''}</div>`; box.appendChild(e); } }
   } else {
     const seen = [...new Set(save.verses)]; $('colCount').textContent = `${seen.length} de ${VERSES.length} versículos leídos`;
     for (const i of seen) { const V = VERSES[i]; if (!V) continue; const e = document.createElement('div'); e.className = 'vitem'; e.innerHTML = `«${V[0]}» <b>${V[1]}</b>`; box.appendChild(e); }

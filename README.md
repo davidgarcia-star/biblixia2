@@ -4,9 +4,23 @@
 
 Para jugar, abre: https://davidgarcia-star.github.io/biblixia2/
 
-Juego bíblico cristiano en 3D, gratis, en el navegador (computadora y celular). No hay niveles: eres el transportista de Dios. Recoges a profetas, apóstoles y personajes de la Biblia y los llevas a su destino en las **32 provincias de República Dominicana** antes de que se acabe el tiempo. Mientras viajan, cada personaje cuenta su historia en voz alta: con voz de hombre si es hombre y con voz de mujer si es mujer.
+Juego bíblico cristiano en 3D, gratis, en el navegador (computadora y celular). Eres el transportista de Dios. Recoges a profetas, apóstoles y personajes de la Biblia y los llevas a su destino en las **32 provincias de República Dominicana** antes de que se acabe el tiempo. Mientras viajan, cada personaje cuenta su historia en voz alta: con voz de hombre si es hombre y con voz de mujer si es mujer.
 
 Creado por **Luis David Esteban García** de parte de **MIPROAA** – Ministerio Profético Ardiendo Por El Avivamiento.
+
+## Niveles
+BIBLIXIA 2 tiene 3 niveles. Al tocar **JUGAR** (o **🎯 Niveles**) eliges el nivel, después la provincia y a quién llevar.
+
+| Nivel | Personajes | Viaje | Tiempo |
+|---|---|---|---|
+| 🟢 Básico | Los más conocidos (Pedro, Moisés, Noé, David, Jonás…) · 14 | Cortos, hasta 70 km | Tiempo extra |
+| 🟡 Intermedio | Apóstoles, profetas mayores y mujeres de fe · 14 | Medianos, de 50 a 150 km | Tiempo normal |
+| 🔴 Avanzado | Profetas menores y apóstoles menos conocidos · 13 | Largos, más de 120 km | Tiempo justo |
+
+Cada nivel muestra cuántos personajes llevaste a tiempo y sus estrellas. La colección también está ordenada por nivel.
+
+## BIBLIXIA 3
+Al **pasar 3 misiones** (llevar a 3 personajes distintos a tiempo, en cualquier nivel) se desbloquea [BIBLIXIA 3](https://davidgarcia-star.github.io/luisdavidgarcia/biblixia3/). En la portada aparece el botón con el avance (por ejemplo «2 de 3 misiones») y al lograrlo sale el botón «Jugar BIBLIXIA 3».
 
 ## El mapa
 - La forma real de la isla, a escala 1:2: 1 km real equivale a 500 unidades del juego. Los viajes duran de 10 minutos a más de 1 hora.
