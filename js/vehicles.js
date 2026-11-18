@@ -31,6 +31,15 @@ function wheel(g, x, y, z, r, w) {
   add(wg, new THREE.CylinderGeometry(r * .6, r * .6, w * 1.04, 12), M.rim, 0, 0, 0, 0, 0, Math.PI / 2);
   return wg;
 }
+// rueda de bicicleta: llanta fina, aro y rayos
+function bikeWheel(g, z) {
+  const wg = new THREE.Group(); wg.position.set(0, .36, z); g.add(wg);
+  add(wg, new THREE.TorusGeometry(.33, .028, 8, 28), M.tire, 0, 0, 0, 0, Math.PI / 2, 0);
+  add(wg, new THREE.TorusGeometry(.3, .01, 6, 28), M.rim, 0, 0, 0, 0, Math.PI / 2, 0);
+  add(wg, new THREE.CylinderGeometry(.035, .035, .08, 10), M.metal, 0, 0, 0, 0, 0, Math.PI / 2);
+  for (let i = 0; i < 8; i++) add(wg, new THREE.CylinderGeometry(.004, .004, .6, 3), M.rim, 0, 0, 0, i * Math.PI / 8);
+  return wg;
+}
 function textTex(txt, bg, fg, w = 512, h = 96, font = '800 60px system-ui, sans-serif') {
   const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d');
   x.fillStyle = bg; x.fillRect(0, 0, w, h); x.fillStyle = fg; x.font = font; x.textAlign = 'center'; x.textBaseline = 'middle';
@@ -62,7 +71,16 @@ export function makeVehicle(kind, color) {
   g.userData = u;
   if (kind === 'bici') {
     const c = paint(color ?? 0x2a7ad8);
-    u.wheels.push(wheel(g, 0, .36, .55, .36, .05), wheel(g, 0, .36, -.55, .36, .05));
+    u.wheels.push(bikeWheel(g, .55), bikeWheel(g, -.55));
+    // biela con plato y pedales: gira con la velocidad y el ciclista pedalea
+    const crank = new THREE.Group(); crank.position.set(0, .34, -.08); g.add(crank); u.crank = crank;
+    add(crank, new THREE.CylinderGeometry(.09, .09, .02, 16), M.metal, .05, 0, 0, 0, 0, Math.PI / 2);
+    for (const sx of [-1, 1]) {
+      const arm = new THREE.Group(); arm.position.x = sx * .09; arm.rotation.x = sx > 0 ? 0 : Math.PI; crank.add(arm);
+      add(arm, new THREE.BoxGeometry(.02, .17, .03), M.metal, 0, -.085, 0);
+      const ped = add(arm, new THREE.BoxGeometry(.1, .02, .06), M.black, sx * .05, -.17, 0); u.pedals = u.pedals || []; u.pedals.push(ped);
+    }
+    add(g, new THREE.CylinderGeometry(.006, .006, .48), M.black, .06, .35, -.32, Math.PI / 2); // cadena
     add(g, new THREE.CylinderGeometry(.03, .03, 1.0), c, 0, .62, 0, Math.PI / 2 - .25);
     add(g, new THREE.CylinderGeometry(.03, .03, .6), c, 0, .55, -.25, .35);
     add(g, new THREE.CylinderGeometry(.03, .03, .55), c, 0, .62, .48, -.3);
@@ -100,25 +118,58 @@ export function makeVehicle(kind, color) {
     sign.castShadow = false;
     u.seats = [[-.7, 1.0, 3.6], [.6, 1.0, 1.5]];
   } else if (kind === 'caballo' || kind === 'burro') {
+    // Caballo y burro con formas redondeadas: pecho, lomo y anca, cuello inclinado, cabeza con hocico,
+    // orejas, crin, cola que se mece y patas con rodilla, menudillo y casco
     const B = kind === 'burro', k = B ? .72 : 1, c = fur(color ?? (B ? 0x8a8278 : 0x6a3c1e)), dark = fur(B ? 0x4a4440 : 0x2a1a10);
-    const body = add(g, new THREE.SphereGeometry(.5 * k, 14, 10), c, 0, 1.25 * k, 0); body.scale.set(.75, .78, 1.7);
-    const neck = new THREE.Group(); neck.position.set(0, 1.45 * k, .72 * k); g.add(neck); u.neck = neck;
-    add(neck, new THREE.CylinderGeometry(.16 * k, .24 * k, .8 * k, 10), c, 0, .3 * k, .15 * k, .6);
-    const head = add(neck, new THREE.BoxGeometry(.24 * k, .26 * k, .6 * k), c, 0, .62 * k, .45 * k, .5);
-    for (const s of [-1, 1]) add(neck, new THREE.ConeGeometry(.05 * k, (B ? .4 : .18) * k, 6), c, s * .08 * k, (B ? .95 : .85) * k, .32 * k, -.2, 0, s * .15);
-    if (!B) add(neck, new THREE.BoxGeometry(.05, .5, .55), dark, 0, .5, .05, .6); // crin
-    add(g, new THREE.CylinderGeometry(.04 * k, .08 * k, .7 * k, 6), dark, 0, 1.1 * k, -.92 * k, -.5);
-    for (const [x, z] of [[-.2, .55], [.2, .55], [-.2, -.6], [.2, -.6]]) {
-      const hip = new THREE.Group(); hip.position.set(x * k, 1.05 * k, z * k); g.add(hip);
-      add(hip, new THREE.CylinderGeometry(.08 * k, .06 * k, .55 * k, 8), c, 0, -.27 * k, 0);
-      const knee = new THREE.Group(); knee.position.set(0, -.52 * k, 0); hip.add(knee);
-      add(knee, new THREE.CylinderGeometry(.055 * k, .045 * k, .48 * k, 8), c, 0, -.24 * k, 0);
-      add(knee, new THREE.CylinderGeometry(.065 * k, .07 * k, .06 * k, 8), dark, 0, -.5 * k, 0);
-      u.legs.push({ hip, knee, ph: (x < 0 ? 0 : Math.PI) + (z < 0 ? Math.PI / 2 : 0) });
+    const light = fur(B ? 0xd8d2c8 : 0x4a2a14), hoofM = fur(0x1e1814), eyeM = std(0x0a0a0a, { roughness: .15 });
+    const body = add(g, new THREE.CapsuleGeometry(.36 * k, .95 * k, 6, 16), c, 0, 1.27 * k, 0, Math.PI / 2); body.scale.set(.86, 1, 1);
+    add(g, new THREE.SphereGeometry(.37 * k, 16, 12), c, 0, 1.22 * k, .55 * k).scale.set(.84, 1, .9);   // pecho
+    add(g, new THREE.SphereGeometry(.39 * k, 16, 12), c, 0, 1.3 * k, -.56 * k).scale.set(.9, 1, .95);   // anca
+    add(g, new THREE.SphereGeometry(.3 * k, 14, 10), light, 0, 1.06 * k, 0).scale.set(.95, .45, 2.2);   // panza
+    // cuello y cabeza
+    const neck = new THREE.Group(); neck.position.set(0, 1.42 * k, .72 * k); g.add(neck); u.neck = neck;
+    const nk = add(neck, new THREE.CylinderGeometry(.15 * k, .25 * k, .78 * k, 14), c, 0, .3 * k, .2 * k, .62); nk.scale.set(.8, 1, 1);
+    if (!B) { add(neck, new THREE.BoxGeometry(.05, .66, .07), dark, 0, .36, .02, .62); add(neck, new THREE.BoxGeometry(.04, .5, .05), dark, .03, .3, -.01, .62, 0, .15); } // crin
+    else add(neck, new THREE.BoxGeometry(.04 * k, .6 * k, .1 * k), dark, 0, .38 * k, .1 * k, .62);
+    const head = new THREE.Group(); head.position.set(0, .64 * k, .45 * k); neck.add(head); u.head = head;
+    add(head, new THREE.CylinderGeometry(.085 * k, .14 * k, .56 * k, 12), c, 0, -.03 * k, .2 * k, 1.95).scale.set(.85, 1, 1); // cara
+    add(head, new THREE.SphereGeometry(.13 * k, 12, 10), c, 0, .02 * k, 0).scale.set(.9, 1, 1.05);                     // frente
+    add(head, new THREE.SphereGeometry(.1 * k, 12, 10), B ? light : dark, 0, -.13 * k, .42 * k).scale.set(.95, .85, 1); // hocico
+    for (const sx of [-1, 1]) {
+      add(head, new THREE.SphereGeometry(.022 * k, 8, 6), eyeM, sx * .1 * k, .05 * k, .05 * k);                       // ojos
+      add(head, new THREE.SphereGeometry(.018 * k, 6, 5), hoofM, sx * .045 * k, -.12 * k, .5 * k);                    // fosas
+      const ear = add(head, new THREE.ConeGeometry(.035 * k, (B ? .32 : .14) * k, 8), c, sx * .07 * k, (B ? .26 : .17) * k, -.04 * k, -.25, 0, sx * -.2);
+      ear.scale.z = .6;
     }
-    add(g, new THREE.BoxGeometry(.62 * k, .12 * k, .7 * k), M.leather, 0, 1.62 * k, .05 * k);
-    if (!B) { add(g, new THREE.BoxGeometry(.66, .1, .5), fur(0xb02a2a), 0, 1.6, .05); }
-    else { for (const s of [-1, 1]) add(g, new THREE.BoxGeometry(.18, .4, .45), M.rope, s * .42, 1.2 * k, -.15); } // árganas del burro
+    if (!B) add(head, new THREE.BoxGeometry(.05, .1, .08), dark, 0, .14, .06, .4); // copete
+    add(head, new THREE.TorusGeometry(.12 * k, .012 * k, 6, 18), M.leather, 0, -.08 * k, .3 * k, 0, Math.PI / 2, 0); // bozal
+    // cola que se mece
+    const tail = new THREE.Group(); tail.position.set(0, 1.42 * k, -.92 * k); tail.rotation.x = -.5; g.add(tail); u.tail = tail;
+    add(tail, new THREE.CylinderGeometry(.05 * k, .035 * k, .2 * k, 8), c, 0, -.08 * k, 0);
+    const hair = add(tail, new THREE.CylinderGeometry(B ? .03 * k : .07 * k, B ? .03 * k : .03 * k, (B ? .5 : .62) * k, 8), dark, 0, -(B ? .4 : .45) * k, -.02 * k);
+    if (B) add(tail, new THREE.SphereGeometry(.06 * k, 8, 6), dark, 0, -.66 * k, -.02 * k).scale.y = 1.6;
+    hair.scale.z = .7;
+    // patas: muslo, rodilla, caña, menudillo y casco
+    for (const [x, z] of [[-.2, .55], [.2, .55], [-.21, -.6], [.21, -.6]]) {
+      const back = z < 0, hip = new THREE.Group(); hip.position.set(x * k, 1.1 * k, z * k); g.add(hip);
+      add(hip, new THREE.SphereGeometry((back ? .15 : .12) * k, 10, 8), c, 0, -.05 * k, 0).scale.set(.8, 1.4, 1.1);
+      add(hip, new THREE.CylinderGeometry((back ? .1 : .085) * k, .055 * k, .55 * k, 10), c, 0, -.27 * k, 0);
+      const knee = new THREE.Group(); knee.position.set(0, -.53 * k, 0); hip.add(knee);
+      add(knee, new THREE.SphereGeometry(.055 * k, 8, 6), c);
+      add(knee, new THREE.CylinderGeometry(.04 * k, .036 * k, .42 * k, 8), B ? light : c, 0, -.22 * k, 0);
+      add(knee, new THREE.SphereGeometry(.05 * k, 8, 6), B ? light : dark, 0, -.43 * k, .01 * k);
+      add(knee, new THREE.CylinderGeometry(.052 * k, .068 * k, .07 * k, 10), hoofM, 0, -.48 * k, .015 * k);
+      u.legs.push({ hip, knee, back, ph: (x < 0 ? 0 : Math.PI) + (back ? Math.PI / 2 : 0) });
+    }
+    // montura con sudadero, estribos y riendas
+    add(g, new THREE.BoxGeometry(.62 * k, .1 * k, .7 * k), M.leather, 0, 1.64 * k, .05 * k);
+    add(g, new THREE.BoxGeometry(.2 * k, .12 * k, .1 * k), M.leather, 0, 1.72 * k, .34 * k); // cabeza de la silla
+    if (!B) { add(g, new THREE.BoxGeometry(.8, .06, .62), fur(0xb02a2a), 0, 1.6, .05); }
+    else { for (const sx of [-1, 1]) add(g, new THREE.BoxGeometry(.18, .4, .45), M.rope, sx * .42, 1.2 * k, -.15); } // árganas del burro
+    for (const sx of [-1, 1]) {
+      add(g, new THREE.CylinderGeometry(.008, .008, .5 * k, 4), M.black, sx * .33 * k, 1.38 * k, .1 * k);
+      add(g, new THREE.TorusGeometry(.05, .01, 4, 10), M.metal, sx * .33 * k, 1.12 * k, .1 * k, 0, Math.PI / 2, 0);
+    }
     u.seats = [[0, 1.22 * k, .05 * k], [0, 1.1 * k, -.6 * k]];
     u.straddle = true; u.ride = 2;
   } else if (kind === 'lancha') {
@@ -186,15 +237,24 @@ export function makeVehicle(kind, color) {
 export function animateVehicle(v, dt, speed, t) {
   const u = v.userData;
   for (const w of u.wheels) w.rotation.x += speed * dt / .4;
+  if (u.crank) { u.crank.rotation.x += speed * dt / .9; for (const p of u.pedals) p.rotation.x = -p.parent.rotation.x - u.crank.rotation.x; }
   if (u.legs.length) {
-    const s = Math.abs(speed), f = s > .3 ? 2.2 + s * .35 : 0;
+    // paso (lento), trote (diagonales juntas) y galope (de dos en dos, con más estirón)
+    const s = Math.abs(speed), moving = s > .3, gallop = s > 13, f = moving ? 2.4 + s * (gallop ? .3 : .42) : 0;
     u.gait = (u.gait || 0) + dt * f;
+    const k = Math.min(1, dt * 14), amp = Math.min(gallop ? .85 : .6, .28 + s * .035);
     for (const L of u.legs) {
-      const a = s > .3 ? Math.sin(u.gait + L.ph) * Math.min(.7, .25 + s * .03) : 0;
-      L.hip.rotation.x = THREE.MathUtils.lerp(L.hip.rotation.x, a, Math.min(1, dt * 12));
-      L.knee.rotation.x = THREE.MathUtils.lerp(L.knee.rotation.x, s > .3 ? Math.max(0, -Math.sin(u.gait + L.ph + .8)) * .9 : 0, Math.min(1, dt * 12));
+      const ph = gallop ? (L.back ? Math.PI * .9 : 0) + (L.hip.position.x < 0 ? 0 : .35) : L.ph;
+      const a = moving ? Math.sin(u.gait + ph) * amp : 0;
+      // la pata levantada dobla la rodilla (adelante dobla hacia atrás, atrás el corvejón)
+      const lift = moving ? Math.max(0, -Math.cos(u.gait + ph)) : 0;
+      L.hip.rotation.x = THREE.MathUtils.lerp(L.hip.rotation.x, a, k);
+      L.knee.rotation.x = THREE.MathUtils.lerp(L.knee.rotation.x, (L.back ? -.25 + lift * -.35 : lift * 1.1), k);
     }
-    if (u.neck) u.neck.rotation.x = Math.sin(u.gait * 2) * .05 * Math.min(1, s / 5) + (s < .3 ? Math.sin(t * .7) * .06 : 0);
+    const nod = moving ? Math.sin(u.gait * (gallop ? 1 : 2)) * (gallop ? .12 : .06) * Math.min(1, s / 5) : Math.sin(t * .7) * .06;
+    if (u.neck) u.neck.rotation.x = nod;
+    if (u.head) u.head.rotation.x = moving ? -nod * .6 : Math.sin(t * .5 + 1) * .08;
+    if (u.tail) { u.tail.rotation.x = -.5 - Math.min(.5, s * .03); u.tail.rotation.z = Math.sin(t * (moving ? 6 : 1.4)) * (moving ? .12 : .2); }
   }
   if (u.prop) for (const p of u.prop) p.rotation.z += dt * (8 + Math.abs(speed) * .8);
   if (u.rotor) { u.rotSpd = THREE.MathUtils.lerp(u.rotSpd || 0, u.engineOn ? 22 : 0, dt * .8); u.rotor.rotation.y += dt * u.rotSpd; u.tailRotor.rotation.x += dt * u.rotSpd * 1.6; }

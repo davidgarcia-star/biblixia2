@@ -616,7 +616,7 @@ export function compactParts(root, keep = new Set()) {
 }
 
 /* ---------- Animación (caminar, correr, saltar, reposo) ---------- */
-export function animateHuman(h, dt, { speed, onGround, vy, land, t, gesture = 0, climb = -1, swim = 0, kneel = -1, praise = -1, sit = 0, ride = 0, lean = 0 }) {
+export function animateHuman(h, dt, { speed, onGround, vy, land, t, gesture = 0, climb = -1, swim = 0, kneel = -1, praise = -1, sit = 0, ride = 0, lean = 0, pedal = null }) {
   const run = THREE.MathUtils.clamp((speed - 5.5) / 3, 0, 1);
   const amp = THREE.MathUtils.clamp(speed / 5.2, 0, 1);
   const stride = lerp(1.45, 2.3, run);
@@ -700,6 +700,13 @@ export function animateHuman(h, dt, { speed, onGround, vy, land, t, gesture = 0,
     if (lean) { P.s0x = P.s1x = -.75; P.s0z = -.18; P.s1z = .18; P.e0 = P.e1 = -1.0; }
     else if (horse) { P.s0x = P.s1x = -.75; P.s0z = .08; P.s1z = -.08; P.e0 = P.e1 = -.9; }
     else { P.s0x = P.s1x = -1.05; P.s0z = -.2; P.s1z = .2; P.e0 = P.e1 = -.35; }
+    // bicicleta: las piernas siguen a los pedales (una sube mientras la otra baja)
+    if (pedal !== null && !lean) {
+      const a = pedal, b = pedal + Math.PI;
+      P.t0 = -.82 - Math.sin(a) * .36; P.k0 = 1.2 + Math.cos(a) * .4; P.a0 = .1 + Math.sin(a) * .2;
+      P.t1 = -.82 - Math.sin(b) * .36; P.k1 = 1.2 + Math.cos(b) * .4; P.a1 = .1 + Math.sin(b) * .2;
+      P.spineX = .22; P.headX = -.2;
+    }
   }
   // alabanza al entrar al templo: salta con los brazos arriba, se arrodilla y mueve la cabeza adorando
   let headSide = 0;

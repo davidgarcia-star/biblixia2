@@ -640,7 +640,8 @@ function drive(dt) {
   for (let si = 0, stop = false; si < n && !stop; si++) {
     let nx = v.x + Math.sin(v.yaw) * v.speed * sdt, nz = v.z + Math.cos(v.yaw) * v.speed * sdt;
     // choques: no se pasa por encima de edificios, árboles, postes ni otros vehículos
-    { const dyn = dynSolids(nx, nz, v);
+    // parado (sin acelerar) no se revisan choques: antes la gente o los carros que pasaban lo empujaban y retrocedía solo
+    if (Math.abs(v.speed) > .4) { const dyn = dynSolids(nx, nz, v);
       if (vehHit(v, nx, nz, v.yaw, dyn)) {
         crash(v); nx = v.x; nz = v.z; stop = true;
         const sep = vehHit(v, v.x, v.z, v.yaw, dyn); if (sep) { nx += clamp(sep[0], -1.5, 1.5); nz += clamp(sep[1], -1.5, 1.5); }
@@ -648,7 +649,7 @@ function drive(dt) {
     const b = blocked(nx, nz);
     if (b) { blockMsg(b); v.speed = 0; stop = true; }
     else if (K.water) {
-      if (H0(nx, nz) > -1.2) { v.speed *= -.2; stop = true; if (performance.now() - blockMsgT > 2500) { blockMsgT = performance.now(); toast('⚓ Llegaste a la orilla: pulsa T para bajarte', '#9fd8ff'); } }
+      if (H0(nx, nz) > -1.2) { v.speed = 0; stop = true; if (performance.now() - blockMsgT > 2500) { blockMsgT = performance.now(); toast('⚓ Llegaste a la orilla: pulsa T para bajarte', '#9fd8ff'); } }
       else { v.x = nx; v.z = nz; }
       v.y = 0; v.pitch = lerp(v.pitch, clamp(v.speed / K.max, 0, 1) * .08, fdt * 3);
     } else {
@@ -1055,7 +1056,7 @@ function step(dt) {
     // conductor visible (o adentro)
     const seat = v.obj.userData.seats[0], hostObj = v.kind === 'tren' ? v.obj.userData.cars[0] : v.obj;
     if (v.K.hide) human.root.visible = false;
-    else { human.root.visible = true; const w = hostObj.localToWorld(new THREE.Vector3(...seat)); human.root.position.copy(w); human.root.quaternion.copy(hostObj.quaternion); animateHuman(human, dt, { speed: 0, onGround: true, vy: 0, land: 0, t: clockT, sit: v.obj.userData.ride ? 0 : 1, ride: v.obj.userData.ride || 0 }); }
+    else { human.root.visible = true; const w = hostObj.localToWorld(new THREE.Vector3(...seat)); human.root.position.copy(w); human.root.quaternion.copy(hostObj.quaternion); animateHuman(human, dt, { speed: 0, onGround: true, vy: 0, land: 0, t: clockT, sit: v.obj.userData.ride ? 0 : 1, ride: v.obj.userData.ride || 0, pedal: v.obj.userData.crank ? v.obj.userData.crank.rotation.x : null }); }
     if (passenger) {
       const s2 = v.obj.userData.seats[1], w2 = hostObj.localToWorld(new THREE.Vector3(...s2));
       if (PAX.pos.distanceTo(w2) > 60) { PAX.pos.lerp(w2, dt * 1.5); passenger.root.position.copy(PAX.pos); passenger.root.visible = true; animateHuman(passenger, dt, { speed: 8, onGround: true, vy: 0, land: 0, t: clockT }); }
