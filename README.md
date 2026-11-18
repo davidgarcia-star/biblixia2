@@ -62,7 +62,7 @@ No hay dinero. Cada personaje que llevas a tiempo te regala un **tesoro bíblico
 - Vestimentas: moderna, túnica, pastor, levita, chofer y sumo sacerdote Aarón. Estas dos últimas se desbloquean con las entregas.
 - Minimapa y mapa completo de República Dominicana (tecla `M`).
 - El juego se guarda solo, incluso a mitad de un viaje.
-- Contador de visitantes, Inicio y Salir, PayPal «Honrar al creador» y redes sociales.
+- Contador de visitantes, Inicio y Salir, PayPal «Hacer donación» y redes sociales.
 
 ## Controles
 | Acción | Computadora | Teléfono |
