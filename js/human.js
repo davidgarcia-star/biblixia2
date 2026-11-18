@@ -499,37 +499,55 @@ export function createHuman(opt = {}) {
     const cord = mesh(new THREE.TorusGeometry(.2, .012, 6, 34), sashM, hips, 0, .05, 0); cord.rotation.x = Math.PI / 2; cord.scale.set(1, .78, 1);
     o._skinSkirt = skirtPiv;
   }
+  // Túnica larga: la parte de arriba va unida al torso y la de abajo a la cadera (se recoge al sentarse o
+  // montar). Antes iba fija al suelo y al sentarse/montar la cabeza bajaba y quedaba tapada por la túnica.
+  let robeLow = null;
   if (robe && !SK) {
+    const W = .95; // altura de la cintura donde se parte la túnica
+    const robeUp = grp(spine, 0, -.99, 0);           // hijos en coordenadas de "de pie" (spine está a 0,99)
+    robeLow = grp(hips, 0, W - .93, 0);               // pivote en la cintura: se escala en Y al sentarse
+    const robeLowIn = grp(robeLow, 0, -W, 0);
+    const splitLathe = (prof, seg, mat, pS, pL) => {
+      const lo = [], up = [];
+      for (let i = 0; i < prof.length; i++) {
+        const [r, y] = prof[i];
+        if (y <= W) lo.push([r, y]); if (y >= W) up.push([r, y]);
+        const n = prof[i + 1];
+        if (n && (y - W) * (n[1] - W) < 0) { const t = (W - y) / (n[1] - y), q = [r + (n[0] - r) * t, W]; lo.push(q); up.push(q); }
+      }
+      const out = [];
+      if (lo.length > 1) out.push(mesh(latheUp(lo, seg, pS, pL), mat, robeLowIn));
+      if (up.length > 1) out.push(mesh(latheUp(up, seg, pS, pL), mat, robeUp));
+      return out;
+    };
     // o.hem: altura del borde de la túnica (por defecto llega a los tobillos; más alto deja ver los pies y las sandalias)
     const prof = [[.29, .02], [.3, .05], [.27, .35], [.22, .7], [.2, .95], [.2, 1.15], [.21, 1.3], [.2, 1.4], [.15, 1.46], [.08, 1.5]];
     const hem = o.hem || 0, rprof = hem ? [[.285, hem], [.28, hem + .04]].concat(prof.filter(([, y]) => y > hem + .06)) : prof;
-    const rb = mesh(latheUp(rprof, 40), robeM, root);
-    rb.scale.set(1, 1, .78);
+    for (const m of splitLathe(rprof, 40, robeM)) m.scale.set(1, 1, .78);
     if (o.mantle !== null) {
-      const mt = mesh(latheUp([[.3, .35], [.27, .7], [.235, 1.0], [.23, 1.25], [.225, 1.38], [.17, 1.46], [.1, 1.5]], 40, Math.PI - 1.55, 3.1), mantleM, root);
-      mt.scale.set(1.04, 1, .86);
+      for (const m of splitLathe([[.3, .35], [.27, .7], [.235, 1.0], [.23, 1.25], [.225, 1.38], [.17, 1.46], [.1, 1.5]], 40, mantleM, Math.PI - 1.55, 3.1)) m.scale.set(1.04, 1, .86);
     }
-    const sh = mesh(new THREE.TorusGeometry(.2, .022, 10, 40), sashM, root, 0, .98, 0); sh.rotation.x = Math.PI / 2; sh.scale.set(1, .8, 1);
+    const sh = mesh(new THREE.TorusGeometry(.2, .022, 10, 40), sashM, robeUp, 0, .98, 0); sh.rotation.x = Math.PI / 2; sh.scale.set(1, .8, 1);
     // nombre en la espalda también con túnica
     if (o.name) {
       const nm = new THREE.MeshStandardMaterial({ map: nameTexture(o.name.toUpperCase(), '#ffd34d'), transparent: true, roughness: .7, polygonOffset: true, polygonOffsetFactor: -2 });
       const r0 = o.mantle !== null ? .238 : .212;
-      const back = mesh(new THREE.CylinderGeometry(r0, r0, .11, 24, 1, true, Math.PI - .85, 1.7), nm, root, 0, 1.22, 0); back.scale.set(1.04, 1, o.mantle !== null ? .87 : .8); back.castShadow = false;
+      const back = mesh(new THREE.CylinderGeometry(r0, r0, .11, 24, 1, true, Math.PI - .85, 1.7), nm, robeUp, 0, 1.22, 0); back.scale.set(1.04, 1, o.mantle !== null ? .87 : .8); back.castShadow = false;
     }
-  }
-  // Vestiduras del sumo sacerdote (Éxodo 28): manto azul con granadas y campanillas, efod, pectoral con 12 piedras y mitra con lámina de oro
-  if (o.priest) {
-    const blue = new THREE.MeshStandardMaterial({ map: clothTexture(0x1f3a8a, 'linen'), roughness: .85, side: THREE.DoubleSide });
-    const bm = mesh(latheUp([[.27, .46], [.255, .6], [.225, .9], [.212, 1.15], [.216, 1.3], [.2, 1.4], [.15, 1.46], [.08, 1.5]], 40), blue, root); bm.scale.set(1.02, 1, .8);
-    const pomC = [0x1f3a8a, 0x5b2a7a, 0xb3122e];
-    for (let i = 0; i < 24; i++) { const a = i / 24 * Math.PI * 2, x = Math.sin(a) * .272, z = Math.cos(a) * .272 * .8; if (i % 2) mesh(new THREE.ConeGeometry(.018, .035, 8), gold, root, x, .44, z); else { const pm = mesh(SG(.02, 10, 8), new THREE.MeshStandardMaterial({ color: pomC[(i / 2) % 3], roughness: .6 }), root, x, .445, z); pm.scale.y = 1.2; } }
-    const efTex = (() => { const c = document.createElement('canvas'); c.width = 128; c.height = 64; const g = c.getContext('2d'); const cs = ['#d4a72c', '#20408f', '#5b2a7a', '#b3122e', '#efe8d8']; for (let i = 0; i < 16; i++) { g.fillStyle = cs[i % 5]; g.fillRect(i * 8, 0, 8, 64); } const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
-    const efod = mesh(new THREE.CylinderGeometry(.228, .222, .42, 28, 1, true), new THREE.MeshStandardMaterial({ map: efTex, roughness: .6, metalness: .3, side: THREE.DoubleSide }), root, 0, 1.12, 0); efod.scale.z = .8;
-    const band = mesh(new THREE.TorusGeometry(.225, .02, 8, 36), new THREE.MeshStandardMaterial({ map: efTex, metalness: .3, roughness: .5 }), root, 0, .93, 0); band.rotation.x = Math.PI / 2; band.scale.set(1, .8, 1);
-    for (const s2 of [-1, 1]) { const ony = mesh(SG(.028, 12, 10), physM({ color: 0x1a1a1a, roughness: .1, clearcoat: 1 }), root, s2 * .13, 1.44, .02); const st = mesh(new THREE.BoxGeometry(.05, .16, .03), new THREE.MeshStandardMaterial({ map: efTex }), root, s2 * .12, 1.36, .14); st.rotation.x = -.3; }
-    const plate = mesh(new THREE.BoxGeometry(.17, .2, .02), gold, root, 0, 1.26, .175); plate.rotation.x = -.08;
-    const gems = [0xc0392b, 0xf1c40f, 0x27ae60, 0x16a085, 0x2c3e8f, 0xecf0f1, 0xe67e22, 0x8e44ad, 0x9b59b6, 0x3498db, 0x34495e, 0x1abc9c];
-    gems.forEach((c, i) => { const col = i % 3, row = Math.floor(i / 3); mesh(new THREE.BoxGeometry(.034, .034, .02), physM({ color: c, roughness: .05, clearcoat: 1, metalness: .1 }), root, (col - 1) * .048, 1.335 - row * .045, .19).rotation.x = -.08; });
+    // Vestiduras del sumo sacerdote (Éxodo 28): manto azul con granadas y campanillas, efod, pectoral con 12 piedras y mitra con lámina de oro
+    if (o.priest) {
+      const blue = new THREE.MeshStandardMaterial({ map: clothTexture(0x1f3a8a, 'linen'), roughness: .85, side: THREE.DoubleSide });
+      for (const m of splitLathe([[.27, .46], [.255, .6], [.225, .9], [.212, 1.15], [.216, 1.3], [.2, 1.4], [.15, 1.46], [.08, 1.5]], 40, blue)) m.scale.set(1.02, 1, .8);
+      const pomC = [0x1f3a8a, 0x5b2a7a, 0xb3122e];
+      for (let i = 0; i < 24; i++) { const a = i / 24 * Math.PI * 2, x = Math.sin(a) * .272, z = Math.cos(a) * .272 * .8; if (i % 2) mesh(new THREE.ConeGeometry(.018, .035, 8), gold, robeLowIn, x, .44, z); else { const pm = mesh(SG(.02, 10, 8), new THREE.MeshStandardMaterial({ color: pomC[(i / 2) % 3], roughness: .6 }), robeLowIn, x, .445, z); pm.scale.y = 1.2; } }
+      const efTex = (() => { const c = document.createElement('canvas'); c.width = 128; c.height = 64; const g = c.getContext('2d'); const cs = ['#d4a72c', '#20408f', '#5b2a7a', '#b3122e', '#efe8d8']; for (let i = 0; i < 16; i++) { g.fillStyle = cs[i % 5]; g.fillRect(i * 8, 0, 8, 64); } const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+      const efod = mesh(new THREE.CylinderGeometry(.228, .222, .42, 28, 1, true), new THREE.MeshStandardMaterial({ map: efTex, roughness: .6, metalness: .3, side: THREE.DoubleSide }), robeUp, 0, 1.12, 0); efod.scale.z = .8;
+      const band = mesh(new THREE.TorusGeometry(.225, .02, 8, 36), new THREE.MeshStandardMaterial({ map: efTex, metalness: .3, roughness: .5 }), robeUp, 0, .93, 0); band.rotation.x = Math.PI / 2; band.scale.set(1, .8, 1);
+      for (const s2 of [-1, 1]) { const ony = mesh(SG(.028, 12, 10), physM({ color: 0x1a1a1a, roughness: .1, clearcoat: 1 }), robeUp, s2 * .13, 1.44, .02); const st = mesh(new THREE.BoxGeometry(.05, .16, .03), new THREE.MeshStandardMaterial({ map: efTex }), robeUp, s2 * .12, 1.36, .14); st.rotation.x = -.3; }
+      const plate = mesh(new THREE.BoxGeometry(.17, .2, .02), gold, robeUp, 0, 1.26, .175); plate.rotation.x = -.08;
+      const gems = [0xc0392b, 0xf1c40f, 0x27ae60, 0x16a085, 0x2c3e8f, 0xecf0f1, 0xe67e22, 0x8e44ad, 0x9b59b6, 0x3498db, 0x34495e, 0x1abc9c];
+      gems.forEach((c, i) => { const col = i % 3, row = Math.floor(i / 3); mesh(new THREE.BoxGeometry(.034, .034, .02), physM({ color: c, roughness: .05, clearcoat: 1, metalness: .1 }), robeUp, (col - 1) * .048, 1.335 - row * .045, .19).rotation.x = -.08; });
+    }
   }
 
   // Brazos
@@ -560,7 +578,7 @@ export function createHuman(opt = {}) {
   }
   // Unir las piezas que se mueven juntas (mismo hueso y mismo material): ~55 piezas → ~20 (mucho más rápido de dibujar)
   compactParts(root, new Set([...eyes, skirt].filter(Boolean)));
-  const H = { root, hips, spine, chest, neck, head, legs, arms, eyes, skirt, skinSkirt: o._skinSkirt || null, phase: 0, swimPh: 0, opts: o, staff: !!o.staff };
+  const H = { root, hips, spine, chest, neck, head, legs, arms, eyes, skirt, robeLow, skinSkirt: o._skinSkirt || null, phase: 0, swimPh: 0, opts: o, staff: !!o.staff };
   root.userData.isHuman = true; root.userData.hum = H;
   return H;
 }
@@ -713,6 +731,8 @@ export function animateHuman(h, dt, { speed, onGround, vy, land, t, gesture = 0,
   if (swim || h.hips.rotation.x) h.hips.rotation.x = lerp(h.hips.rotation.x, pitch, Math.min(1, dt * 6));
   if (Math.abs(h.hips.rotation.x) < .002) h.hips.rotation.x = 0;
   S(h.hips.position, 'y', P.hipY);
+  // túnica larga: se recoge sobre las piernas al sentarse, montar o arrodillarse (el borde no atraviesa el suelo)
+  if (h.robeLow) S(h.robeLow.scale, 'y', THREE.MathUtils.clamp((P.hipY - .05) / .88, .45, 1));
   S(h.head.rotation, 'x', P.headX);
   h.head.rotation.y = -h.spine.rotation.y * .8 + (gesture > 0 ? Math.sin(t * 9) * .35 : 0) + headSide;
   // falda de pieles (Adán y Eva): sigue a los muslos y se ciñe a ellos al sentarse o arrodillarse

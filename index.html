@@ -79,6 +79,7 @@ window.NAVIDAD_CFG = {
     <div class="hpanel money">💎 <b id="hMoney">0 tesoros</b></div>
     <div class="ibs">
       <button class="ib" id="btnPause" aria-label="Pausa">❚❚</button>
+      <button class="ib" id="btnRun" aria-label="Correr (C)" title="Correr (C)">🏃</button>
       <button class="ib" id="btnMap" aria-label="Mapa (M)">🗺</button>
       <button class="ib" id="btnCam" aria-label="Cámara (V)">🎥</button>
       <button class="ib" id="btnFull" aria-label="Pantalla completa">⛶</button>
@@ -165,7 +166,7 @@ window.NAVIDAD_CFG = {
   <div class="glass panel-w">
     <h2>🎮 Cómo jugar</h2>
     <p><b>Objetivo:</b> elige una misión, recoge al personaje bíblico (busca la columna de luz dorada) y llévalo a su destino (columna verde) antes de que se acabe el tiempo. Mientras viajan, te cuenta su historia. Al llegar te da su regalo y lees un versículo; el tiempo se detiene mientras lees.</p>
-    <p><b>A pie:</b> <kbd>W A S D</kbd> o flechas · <kbd>Shift</kbd> o <kbd>C</kbd> correr · <kbd>Espacio</kbd> saltar · <kbd>T</kbd> subir a un transporte o recoger a un personaje.</p>
+    <p><b>A pie:</b> <kbd>W A S D</kbd> o flechas · <kbd>Shift</kbd>, <kbd>C</kbd> o el botón 🏃 correr (en cualquier nivel; en caballo, burro, bici, moto, carro o lancha también va más rápido) · <kbd>Espacio</kbd> saltar · <kbd>T</kbd> subir a un transporte o recoger a un personaje.</p>
     <p><b>Carro, motor, guagua, caballo, burro, bici y lancha:</b> <kbd>W</kbd> acelerar · <kbd>S</kbd> frenar o reversa · <kbd>A D</kbd> girar · <kbd>Espacio</kbd> freno · <kbd>H</kbd> pito · <kbd>T</kbd> bajarse.</p>
     <p><b>✈️ Avión:</b> <kbd>W</kbd> acelerar en la pista; cuando vaya rápido, <kbd>E</kbd> o <kbd>Espacio</kbd> subir y <kbd>Q</kbd> o <kbd>Shift</kbd> bajar · <kbd>A D</kbd> girar. Aterriza y detente para bajarte. <b>🚁 Helicóptero:</b> <kbd>E</kbd> subir, <kbd>Q</kbd> bajar, <kbd>W S</kbd> avanzar.</p>
     <p><b>🚆 Tren:</b> espéralo en una estación cuando esté detenido, pulsa <kbd>T</kbd> y manéjalo con <kbd>W</kbd> / <kbd>S</kbd>.</p>
@@ -293,7 +294,7 @@ window.NAVIDAD_CFG = {
   var abierto = hechos >= NIVELES.length;
   try { if (new URLSearchParams(location.search).get('probar') === 'luisdavid') abierto = true; } catch (e) {}
   if (abierto) {
-    var m = document.createElement('script'); m.type = 'module'; m.src = 'js/biblixia2.min.js?v=20261117g';
+    var m = document.createElement('script'); m.type = 'module'; m.src = 'js/biblixia2.min.js?v=20261117h';
     document.body.appendChild(m);
     return;
   }

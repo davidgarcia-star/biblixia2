@@ -320,7 +320,10 @@ const hold = (id, code) => { const b = $(id); const on = e => { e.preventDefault
 const tap = (id, fn) => { const b = $(id); b.addEventListener('touchstart', e => { e.preventDefault(); sound.unlock(); fn(); }, { passive: false }); b.addEventListener('click', fn); };
 hold('tGas', 'KeyW'); hold('tUp', 'KeyE'); hold('tDown', 'KeyQ'); hold('tBrake', 'ShiftLeft');
 tap('tTake', () => takePressed = true); tap('tJump', () => jumpPressed = true); tap('tHonk', () => sound.honk(1, 0)); tap('tRun', () => toggleRun());
-function toggleRun() { runToggle = !runToggle; $('tRun').classList.toggle('active', runToggle); toast(runToggle ? '🏃 Correr' : '🚶 Caminar', '#ffd34d', true); }
+// Correr: disponible siempre, sin importar el nivel (Básico, Intermedio o Avanzado). A pie corre y en
+// caballo, burro, bici, moto, carro, guagua o lancha va más rápido (galope / turbo).
+function toggleRun() { runToggle = !runToggle; for (const id of ['tRun', 'btnRun']) $(id).classList.toggle('active', runToggle); toast(runToggle ? (P.veh ? '🏃 Correr: más rápido' : '🏃 Correr') : (P.veh ? '🐢 Velocidad normal' : '🚶 Caminar'), '#ffd34d', true); }
+$('btnRun').onclick = () => toggleRun();
 function input() {
   let fx = 0, fz = 0;
   if (keys.KeyW || keys.ArrowUp) fz += 1; if (keys.KeyS || keys.ArrowDown) fz -= 1;
@@ -611,8 +614,9 @@ function drive(dt) {
   if (K.air) return driveAir(v, dt, I, hasFuel);
   // ---- tierra y agua ----
   const g0 = groundAt(v.x, v.z);
-  const top = K.max * (K.water ? 1 : (g0.road ? (g0.main ? 1 : .85) : K.off));
-  if (thr > 0) v.speed += K.acc * thr * dt * (v.speed < 0 ? 2.5 : 1);
+  const boost = runToggle ? 1.45 : 1; // correr / galope
+  const top = K.max * boost * (K.water ? 1 : (g0.road ? (g0.main ? 1 : .85) : K.off));
+  if (thr > 0) v.speed += K.acc * boost * thr * dt * (v.speed < 0 ? 2.5 : 1);
   else if (thr < 0) v.speed += K.acc * thr * dt * (v.speed > 0 ? 2.2 : .6);
   else v.speed *= Math.pow(K.water ? .7 : .55, dt);
   if (I.brake && !K.water) v.speed *= Math.pow(.15, dt);
@@ -757,7 +761,7 @@ function exitVeh() {
 function driveUI(on) {
   document.body.classList.toggle('driving', on); const air = on && P.veh && P.veh.K.air;
   $('tUp').classList.toggle('hidden', !air); $('tDown').classList.toggle('hidden', !air);
-  $('tHonk').classList.toggle('hidden', !on || air); $('tJump').classList.toggle('hidden', on); $('tRun').classList.toggle('hidden', on); $('tBrake').classList.toggle('hidden', !on || air);
+  $('tHonk').classList.toggle('hidden', !on || air); $('tJump').classList.toggle('hidden', on); $('tRun').classList.toggle('hidden', on && (air || !!(P.veh && P.veh.K.rail))); $('tBrake').classList.toggle('hidden', !on || air);
   $('gauges').classList.toggle('hidden', !on);
   $('tGas').classList.toggle('hidden', !on); $('tTakeLbl').textContent = on ? 'TOMAR / BAJAR' : 'SUBIR / TOMAR';
 }
