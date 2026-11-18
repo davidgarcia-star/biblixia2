@@ -79,13 +79,13 @@ window.NAVIDAD_CFG = {
     <div class="hpanel money">💎 <b id="hMoney">0 tesoros</b></div>
     <div class="ibs">
       <button class="ib" id="btnPause" aria-label="Pausa">❚❚</button>
-      <button class="ib" id="btnRun" aria-label="Correr (C)" title="Correr (C)">🏃</button>
       <button class="ib" id="btnMap" aria-label="Mapa (M)">🗺</button>
       <button class="ib" id="btnCam" aria-label="Cámara (V)">🎥</button>
       <button class="ib" id="btnFull" aria-label="Pantalla completa">⛶</button>
       <button class="ib" id="btnMusic" aria-label="Música">🎵</button>
       <button class="ib" id="btnSfx" aria-label="Efectos">🔊</button>
     </div>
+    <button id="btnRun" class="run-btn" type="button" title="Correr (tecla C)">🏃 <b>CORRER</b><small>Tecla C</small></button>
   </div>
   <div id="hProv" class="hpanel prov">📍</div>
   <div class="mini-wrap"><canvas id="minimap" width="220" height="220"></canvas><span class="mini-n">N</span></div>
@@ -296,7 +296,7 @@ window.NAVIDAD_CFG = {
   var abierto = hechos >= NIVELES.length;
   try { if (new URLSearchParams(location.search).get('probar') === 'luisdavid') abierto = true; } catch (e) {}
   if (abierto) {
-    var m = document.createElement('script'); m.type = 'module'; m.src = 'js/biblixia2.min.js?v=20261117i';
+    var m = document.createElement('script'); m.type = 'module'; m.src = 'js/biblixia2.min.js?v=20261117j';
     document.body.appendChild(m);
     return;
   }

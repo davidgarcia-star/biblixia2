@@ -323,12 +323,17 @@ tap('tTake', () => takePressed = true); tap('tJump', () => jumpPressed = true); 
 // Correr: disponible siempre, sin importar el nivel (Básico, Intermedio o Avanzado). A pie corre y en
 // caballo, burro, bici, moto, carro, guagua o lancha va más rápido (galope / turbo).
 function toggleRun() { runToggle = !runToggle; for (const id of ['tRun', 'btnRun']) $(id).classList.toggle('active', runToggle); toast(runToggle ? (P.veh ? '🏃 Correr: más rápido' : '🏃 Correr') : (P.veh ? '🐢 Velocidad normal' : '🚶 Caminar'), '#ffd34d', true); }
-$('btnRun').onclick = () => toggleRun();
+$('btnRun').onclick = () => toggleRun(); if (isTouch) $('btnRun').classList.add('hidden'); // en el teléfono ya está el botón CORRER de abajo
 function input() {
   let fx = 0, fz = 0;
   if (keys.KeyW || keys.ArrowUp) fz += 1; if (keys.KeyS || keys.ArrowDown) fz -= 1;
   if (keys.KeyA || keys.ArrowLeft) fx -= 1; if (keys.KeyD || keys.ArrowRight) fx += 1;
-  if (joy.id !== null) { fx += joy.x; fz += joy.y; }
+  if (joy.id !== null) {
+    let jx = joy.x, jy = joy.y;
+    // en un transporte, al doblar con el joystick no debe dar reversa sola: zona muerta y reversa solo si se baja bien
+    if (P.veh) { if (Math.abs(jx) < .12) jx = 0; if (jy < 0 && (jy > -.45 || Math.abs(jx) > -jy)) jy = 0; else if (Math.abs(jy) < .12) jy = 0; }
+    fx += jx; fz += jy;
+  }
   return { fx: clamp(fx, -1, 1), fz: clamp(fz, -1, 1), up: !!(keys.KeyE || keys.Space && P.veh && P.veh.K.air), down: !!(keys.KeyQ || (keys.ShiftLeft || keys.ShiftRight) && P.veh && P.veh.K.air), run: runToggle || keys.ShiftLeft || keys.ShiftRight, brake: !!(keys.Space || keys.ShiftLeft) };
 }
 
@@ -574,7 +579,8 @@ function vehHit(v, x, z, yaw, dyn) {
 let crashT = 0;
 function crash(v) {
   if (Math.abs(v.speed) > 5 && clockT - crashT > 1.5) { crashT = clockT; sound.hurt(); toast(v.K.animal ? '🐎 ¡Cuidado! No se puede pasar por ahí' : '💥 ¡Choque! Maneja con cuidado', '#ffb36b'); }
-  v.speed *= -.25;
+  // antes rebotaba hacia atrás (velocidad * -0,25) y la moto parecía retroceder sola: ahora solo se detiene
+  v.speed = 0;
 }
 let blockMsgT = 0;
 function blockMsg(b) { if (performance.now() - blockMsgT < 2500) return; blockMsgT = performance.now(); toast(b === 'haiti' ? '🛂 Frontera con Haití: no se puede cruzar' : '🌊 Hasta aquí llega el mapa', '#ffb36b'); sound.hurt(); }
@@ -622,9 +628,12 @@ function drive(dt) {
   if (I.brake && !K.water) v.speed *= Math.pow(.15, dt);
   v.speed = clamp(v.speed, -top * .35, top);
   if (Math.abs(v.speed) > top) v.speed = lerp(v.speed, Math.sign(v.speed) * top, dt * 2);
-  const steer = -I.fx * K.turn * clamp(Math.abs(v.speed) / 6, 0, 1) * (1 - clamp(Math.abs(v.speed) / (K.max * 1.6), 0, .5));
+  // moto y bici: el giro entra suave (no dobla de golpe)
+  const two = v.kind === 'moto' || v.kind === 'bici';
+  v.steerIn = two ? lerp(v.steerIn || 0, I.fx, Math.min(1, dt * 4)) : I.fx;
+  const steer = -v.steerIn * K.turn * clamp(Math.abs(v.speed) / 6, 0, 1) * (1 - clamp(Math.abs(v.speed) / (K.max * 1.6), 0, .5));
   v.yaw += steer * Math.sign(v.speed || 1) * dt * Math.sqrt(warpFor(v)); // con ritmo de viaje gira un poco más para tomar las curvas
-  v.roll = lerp(v.roll, (v.kind === 'moto' || v.kind === 'bici') ? -steer * .35 : K.water ? -steer * .12 : 0, dt * 5);
+  v.roll = lerp(v.roll, two ? -steer * .2 : K.water ? -steer * .12 : 0, dt * 5);
   // en un viaje con pasajero el camino rinde más (ritmo de viaje): mismos km en pantalla, menos minutos;
   // se mueve en pasitos cortos para que los choques sigan funcionando
   const W = warpFor(v), n = Math.max(1, Math.min(12, Math.ceil(W * Math.abs(v.speed) * dt / 2.5))), sdt = dt * W / n, fdt = dt / n;

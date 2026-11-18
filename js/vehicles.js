@@ -42,7 +42,7 @@ function textTex(txt, bg, fg, w = 512, h = 96, font = '800 60px system-ui, sans-
 /* ---------- Parámetros de manejo ---------- */
 export const KINDS = {
   bici:      { name: 'la bicicleta', emoji: '🚲', max: 14, acc: 6, turn: 1.9, off: .8, cam: 6.5, ground: true, dim: [.32, .92, 0] },
-  moto:      { name: 'el motor', emoji: '🏍️', max: 36, acc: 15, turn: 2.0, off: .55, cam: 7, ground: true, engine: true, dim: [.38, 1.1, .03] },
+  moto:      { name: 'el motor', emoji: '🏍️', max: 26, acc: 11, turn: 1.3, off: .55, cam: 7, ground: true, engine: true, dim: [.38, 1.1, .03] },
   carro:     { name: 'el carro', emoji: '🚗', max: 40, acc: 13, turn: 1.55, off: .5, cam: 9.5, ground: true, engine: true, hide: true, dim: [1.1, 2.45, .03] },
   jeepeta:   { name: 'la jeepeta', emoji: '🚙', max: 38, acc: 12, turn: 1.5, off: .8, cam: 10, ground: true, engine: true, hide: true, dim: [1.2, 2.57, 0] },
   camioneta: { name: 'la camioneta', emoji: '🛻', max: 36, acc: 11, turn: 1.45, off: .85, cam: 10.5, ground: true, engine: true, hide: true, dim: [1.2, 2.92, .03] },
