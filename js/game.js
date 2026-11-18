@@ -754,7 +754,7 @@ function exitVeh() {
   else { const side = { avion: 10, guagua: 3, heli: 4.5 }[v.kind] || 2.2; ex = v.x + Math.cos(v.yaw) * side; ez = v.z - Math.sin(v.yaw) * side; }
   P.pos.set(ex, groundAt(ex, ez).y, ez); P.heading = v.yaw; P.vy = 0; P.onGround = true;
   if (v.kind !== 'tren') v.speed = 0; if (v.obj) v.obj.userData.engineOn = false;
-  P.veh = null; sound.engineOff(); driveUI(false); $('btnGallon').classList.add('hidden');
+  P.veh = null; save.veh = null; sound.engineOff(); driveUI(false); $('btnGallon').classList.add('hidden');
   if (passenger) PAX.pos.set(ex + 1.5, P.pos.y, ez + 1.5);
   save.fuel[v.id] = +v.fuel.toFixed(3); persist();
 }
@@ -1093,7 +1093,7 @@ function step(dt) {
   updateCoins(dt, clockT); updateTrains(dt); updateTraffic(dt); updateSkyPlanes(dt); updateParked(dt); updatePlaces();
   // pequeñas animaciones de lugares
   for (const p of PLACES) { if (p.cab) { const k = (Math.sin(clockT * .08) + 1) / 2; p.cab.m.position.lerpVectors(p.cab.from, p.cab.to, k); } if (p.flag) p.flag.rotation.y = Math.sin(clockT * 2) * .25; }
-  if ((saveT -= dt) <= 0) { saveT = 8; const pv = P.veh; save.pos = { x: P.pos.x, z: P.pos.z }; if (M) { save.mission = { who: M.m.who, dest: M.m.dest, pick: M.pick.prov.id, time: M.time, phase: M.phase, late: M.late }; } if (pv) save.fuel[pv.id] = +pv.fuel.toFixed(3); persist(); }
+  if ((saveT -= dt) <= 0) { saveT = 8; const pv = P.veh; save.pos = { x: P.pos.x, z: P.pos.z }; save.veh = vehSave(); if (M) { save.mission = { who: M.m.who, dest: M.m.dest, pick: M.pick.prov.id, time: M.time, phase: M.phase, late: M.late }; } if (pv) save.fuel[pv.id] = +pv.fuel.toFixed(3); persist(); }
 }
 function loop() {
   requestAnimationFrame(loop);
@@ -1134,9 +1134,34 @@ function play() {
   document.body.classList.add('ingame'); show(null); state = 'play'; ensureMusic(); sound.setMusicMode('play'); updMissionHUD();
   human.root.visible = true; cam.idle = 0;
 }
+// Transporte en el que va el jugador (para volver a ponerlo montado al abrir la página otra vez)
+function vehSave() {
+  const v = P.veh; if (!v || v.kind === 'tren' || (v.K.air && !v.onGround)) return null;
+  return { id: v.id, x: +v.x.toFixed(1), z: +v.z.toFixed(1), yaw: +v.yaw.toFixed(3) };
+}
+function nearestTown(x, z) { let best = null, bd = 1e9; for (const t of TOWNS) { const [px, pz] = t.spots.parking, d = Math.hypot(px - x, pz - z); if (d < bd) { bd = d; best = t; } } return [best, bd]; }
+// Al volver a abrir el juego no se queda solo en el monte:
+//  · si iba a buscar a un personaje, aparece junto a él (como al empezar la misión);
+//  · si iba en un transporte, aparece montado en él donde mismo se quedó (con el pasajero si lo llevaba);
+//  · si iba a pie lejos de todo, aparece en el pueblo más cercano, junto a los transportes.
+let restoreVeh = null, startNote = '';
 function placePlayerStart() {
-  const p = save.pos && isFinite(save.pos.x) ? save.pos : { x: PROV.dn.px + 30, z: PROV.dn.pz + 30 };
-  P.pos.set(p.x, groundAt(p.x, p.z).y, p.z); if (P.pos.y < -.5) { P.pos.set(PROV.dn.x + 40, 0, PROV.dn.z + 30); P.pos.y = groundAt(P.pos.x, P.pos.z).y; }
+  restoreVeh = null; startNote = '';
+  const sm = save.mission, pick = sm && sm.phase !== 'ride' && PROV[sm.pick];
+  let p;
+  if (pick) p = { x: pick.px + 10, z: pick.pz + 16 };
+  else if (save.veh && (restoreVeh = VEH.find(v => v.id === save.veh.id))) {
+    const v = restoreVeh, sv = save.veh; v.x = sv.x; v.z = sv.z; v.yaw = sv.yaw; v.speed = 0; v.vy = 0; v.y = v.kind === 'lancha' ? 0 : groundAt(v.x, v.z).y;
+    if (v.obj) { v.obj.position.set(v.x, v.y, v.z); v.obj.rotation.set(0, v.yaw, 0); }
+    p = { x: v.x, z: v.z };
+  } else {
+    p = save.pos && isFinite(save.pos.x) ? save.pos : { x: PROV.dn.px + 30, z: PROV.dn.pz + 30 };
+    const [t, d] = nearestTown(p.x, p.z);
+    if (t && (d > 250 || groundAt(p.x, p.z).y < -.5)) { const [px, pz] = t.spots.parking; p = { x: px - 30, z: pz + 4 }; startNote = `📍 Estás en ${t.p.name}, junto a los transportes`; }
+  }
+  P.pos.set(p.x, groundAt(p.x, p.z).y, p.z); if (P.pos.y < -.5 && !restoreVeh) { P.pos.set(PROV.dn.x + 40, 0, PROV.dn.z + 30); P.pos.y = groundAt(P.pos.x, P.pos.z).y; }
+  if (pick) P.heading = Math.atan2(pick.px + 14 - P.pos.x, pick.pz + 22 - P.pos.z);
+  P.vy = 0; P.onGround = true; cam.yaw = P.heading;
   camPos.set(P.pos.x, P.pos.y + 6, P.pos.z + 8);
 }
 async function enterGame(then) {
@@ -1147,7 +1172,10 @@ async function enterGame(then) {
   for (let i = 0; i < 400 && chunks.update(P.pos.x, P.pos.z, farMesh, 60) > 0; i++) await idle();
   $('enterLoad').classList.add('hidden'); entering = false;
   if (!M && save.mission) resumeMission();
+  if (restoreVeh && !P.veh) { enter(restoreVeh); restoreVeh = null; }
   play(); if (then) then();
+  if (startNote) { toast(startNote, '#ffd34d'); startNote = ''; }
+  else if (M && M.phase === 'pick') toast(`🙏 ${M.def.name.split(' (')[0]} te espera aquí: acércate y pulsa T`, '#ffd34d');
 }
 // Portada
 $('btnPlay').onclick = () => { sound.click(); sound.unlock(); if (save.mission && !M) { enterGame(); return; } if (!save.player.name) { openCreator(openLevels); return; } state = 'menu'; openLevels(); };
@@ -1236,7 +1264,7 @@ async function startAt(o) {
   if (P.veh) { const v = P.veh; v.speed = 0; if (v.obj) v.obj.userData.engineOn = false; P.veh = null; sound.engineOff(); driveUI(false); if (v.kind === 'tren') v.auto = 'resume'; }
   clearMission(true); startMission(o);
   P.pos.set(M.pick.x - 4, 0, M.pick.z - 6); P.pos.y = groundAt(P.pos.x, P.pos.z).y; P.heading = Math.atan2(M.pick.x - P.pos.x, M.pick.z - P.pos.z); P.vy = 0;
-  camPos.set(P.pos.x, P.pos.y + 6, P.pos.z - 8); cam.yaw = P.heading; save.pos = { x: P.pos.x, z: P.pos.z }; persist();
+  camPos.set(P.pos.x, P.pos.y + 6, P.pos.z - 8); cam.yaw = P.heading; save.pos = { x: P.pos.x, z: P.pos.z }; save.veh = null; persist();
   state = 'loading2'; entering = true; show(null); $('hud').classList.add('hidden'); $('enterLoad').classList.remove('hidden'); rebuildPlayer();
   for (let i = 0; i < 400 && chunks.update(P.pos.x, P.pos.z, farMesh, 60) > 0; i++) await idle();
   $('enterLoad').classList.add('hidden'); entering = false; play();
@@ -1251,7 +1279,7 @@ $('pLevelBtn').onclick = () => { sound.click(); openLevels(); };
 $('pBack').onclick = () => { sound.click(); if (document.body.classList.contains('ingame')) play(); else { show('splash'); state = 'menu'; } };
 $('btnMissions').onclick = () => { sound.click(); openProvinces(); };
 // Pausa
-function pauseGame() { if (state !== 'play') return; state = 'pause'; show('pause'); sound.engineOff(); }
+function pauseGame() { if (state !== 'play') return; save.pos = { x: P.pos.x, z: P.pos.z }; save.veh = vehSave(); persist(); state = 'pause'; show('pause'); sound.engineOff(); }
 function resumeGame() { play(); }
 $('btnPause').onclick = () => { sound.click(); pauseGame(); };
 $('btnResume').onclick = () => { sound.click(); resumeGame(); };
@@ -1326,10 +1354,18 @@ const fsReq = document.documentElement.requestFullscreen || document.documentEle
 function toggleFull() { if (!fsReq) { toast('En iPhone: Compartir ⬆️ → «Agregar a inicio»', '#ffd34d'); return; } if (document.fullscreenElement || document.webkitFullscreenElement) (document.exitFullscreen || document.webkitExitFullscreen).call(document); else { try { const r = fsReq.call(document.documentElement, { navigationUI: 'hide' }); if (r && r.catch) r.catch(() => {}); } catch (e) {} } }
 $('tbFull').onclick = toggleFull; $('btnFull').onclick = toggleFull;
 const SITE = 'https://davidgarcia-star.github.io/luisdavidgarcia/';
+// Empezar desde cero: borra el avance de BIBLIXIA 2 (niveles, tesoros, versículos, misión y lugar)
+// y deja el mismo personaje (ropa y nombre). La marca "reinicio" hace que la cuenta en la nube no lo recupere.
+function resetGame() {
+  if (!confirm('¿Empezar BIBLIXIA 2 desde cero?\n\nSe borrarán los niveles pasados, los tesoros, los versículos y el viaje en curso. Tu personaje se queda igual.')) return;
+  save = { player: save.player, time: save.time, done: {}, gifts: [], verses: [], versesV: 2, deliveries: 0, stars: 0, pos: null, veh: null, mission: null, fuel: {}, best: {}, nivel: 'basico', reinicio: Date.now() };
+  persist(); location.reload();
+}
+$('btnReset').onclick = () => { sound.click(); resetGame(); }; $('btnPauseReset').onclick = () => { sound.click(); resetGame(); };
 function goHome() { persist(); sound.engineOff(); document.body.classList.remove('ingame'); state = 'menu'; show('splash'); sound.setMusicMode('menu'); }
 function exitGame() { persist(); window.close(); setTimeout(() => { if (!window.closed) location.href = SITE; }, 250); }
 $('btnHome').onclick = goHome; $('btnExit').onclick = exitGame;
-addEventListener('beforeunload', () => { save.pos = { x: P.pos.x, z: P.pos.z }; persist(); });
+addEventListener('beforeunload', () => { if (state === 'play' || state === 'pause' || state === 'map') { save.pos = { x: P.pos.x, z: P.pos.z }; save.veh = vehSave(); } persist(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden) { persist(); if (state === 'play') pauseGame(); } });
 
 /* ---------- Arranque ---------- */

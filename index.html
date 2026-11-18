@@ -142,6 +142,7 @@ window.NAVIDAD_CFG = {
       <button class="sp-tile" id="btnCharacter"><b>🧑</b>Mi personaje<small>Ropa y nombre</small></button>
       <button class="sp-tile" id="btnCollection"><b>🏆</b>Colección<small>Personajes y versículos</small></button>
       <button class="sp-tile" id="btnHelp"><b>🎮</b>Cómo jugar<small>Controles</small></button>
+      <button class="sp-tile" id="btnReset"><b>🔄</b>Empezar de cero<small>Borrar el avance</small></button>
       <div class="sp-tile time-box"><b>🕒</b>Hora del día<div class="time-opts"></div></div>
     </nav>
     <div class="sp-links">
@@ -239,6 +240,7 @@ window.NAVIDAD_CFG = {
     <button class="btn ghost" id="btnPauseMissions">📋 Misiones</button>
     <div class="time-opts"></div>
     <button class="btn ghost" id="btnPauseHome">🏠 Inicio</button>
+    <button class="btn ghost" id="btnPauseReset">🔄 Empezar desde cero</button>
     <button class="btn ghost" id="btnPauseExit">🚪 Salir del juego</button>
   </div>
 </div>
@@ -282,7 +284,7 @@ window.NAVIDAD_CFG = {
 </div>
 <script src="js/felicidades.js?v=1"></script>
 <script src="js/pais.js?v=1"></script>
-<script src="js/cuenta.js?v=8" data-pantallas="#splash,#b2Lock"></script>
+<script src="js/cuenta.js?v=9" data-pantallas="#splash,#b2Lock"></script>
 <script src="js/sugerencias.js?v=1" data-origen="BIBLIXIA 2" data-pantallas="#splash,#b2Lock"></script>
 <script src="js/ajuste.js?v=1" data-ajuste="#splash => .sp-wrap => .sp-links ; .screen:not(.hidden):not(#splash):not(.scroll)"></script>
 <script>
@@ -294,7 +296,7 @@ window.NAVIDAD_CFG = {
   var abierto = hechos >= NIVELES.length;
   try { if (new URLSearchParams(location.search).get('probar') === 'luisdavid') abierto = true; } catch (e) {}
   if (abierto) {
-    var m = document.createElement('script'); m.type = 'module'; m.src = 'js/biblixia2.min.js?v=20261117h';
+    var m = document.createElement('script'); m.type = 'module'; m.src = 'js/biblixia2.min.js?v=20261117i';
     document.body.appendChild(m);
     return;
   }
