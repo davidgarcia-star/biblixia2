@@ -260,7 +260,7 @@ window.NAVIDAD_CFG = {
 </div>
 
 <div id="talk" class="hidden"><div class="card talk"><div class="tag" id="tKind"></div><h3 id="tName"></h3><p class="tmsg" id="tMsg"></p><p class="vref" id="tRef"></p><p class="tgift" id="tGift"></p><button class="btn" id="btnTake">Continuar</button></div></div>
-<div id="verse" class="hidden"><div class="card"><div class="tag">MONEDA DE FE · <span id="vNum"></span></div><div class="vpause">⏸ El tiempo está detenido · lee con calma</div><p class="vtext" id="vText"></p><p class="vref" id="vRef"></p><div class="vbar"><i id="vProg"></i></div><button class="btn" id="btnVerseOk" disabled>📖 Lee el versículo…</button></div></div>
+<div id="verse" class="hidden"><div class="card"><div class="tag">MONEDA DE FE · <span id="vNum"></span></div><div class="vpause">⏸ El tiempo está detenido · lee con calma</div><p class="vtext" id="vText"></p><p class="vref" id="vRef"></p><div class="vbar"><i id="vProg"></i></div><button class="btn" id="btnVerseOk" disabled>📖 Lee el versículo…</button><button class="btn ghost" id="btnVerseSkip" type="button" style="margin-top:8px">⏭ Saltar verso</button></div></div>
 <div id="enterLoad" class="screen hidden dim"><div class="spinner"></div><p class="sub">Preparando el camino…</p></div>
 <div id="glLost" class="screen hidden"><div class="spinner"></div><p class="sub">Recuperando los gráficos… tu progreso está guardado.</p></div>
 
@@ -296,7 +296,7 @@ window.NAVIDAD_CFG = {
   var abierto = hechos >= NIVELES.length;
   try { if (new URLSearchParams(location.search).get('probar') === 'luisdavid') abierto = true; } catch (e) {}
   if (abierto) {
-    var m = document.createElement('script'); m.type = 'module'; m.src = 'js/biblixia2.min.js?v=20261117k';
+    var m = document.createElement('script'); m.type = 'module'; m.src = 'js/biblixia2.min.js?v=20261118a';
     document.body.appendChild(m);
     return;
   }

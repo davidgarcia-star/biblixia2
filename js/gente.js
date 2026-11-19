@@ -97,8 +97,9 @@ export function updateGente(dt, P, t, sound, canSpeak, groundY) {
   let near = null, nd = 1e9;
   for (const q of PLAT) {
     const d = Math.hypot(q.town.p.px - P.x, q.town.p.pz - P.z);
-    if (d > 1600) { if (q.obj) { scene.remove(q.obj); q.obj = null; } continue; }
-    if (!q.obj) { q.obj = makePlatanero(); scene.add(q.obj); }
+    // lejos se esconde (antes se borraba y se volvía a crear cada vez y gastaba memoria)
+    if (d > 1600) { if (q.obj) q.obj.visible = false; continue; }
+    if (!q.obj) { q.obj = makePlatanero(); scene.add(q.obj); } else q.obj.visible = true;
     const L = q.r * 8;
     if (q.wait > 0) q.wait -= dt; else { q.s = (q.s + 4 * dt) % L; if ((q.stop -= dt) <= 0) { q.stop = 35 + Math.random() * 25; q.wait = 28; } }
     const side = Math.floor(q.s / (q.r * 2)), f = (q.s % (q.r * 2)) / (q.r * 2) * 2 - 1, h = q.r, cx = q.town.p.px, cz = q.town.p.pz;

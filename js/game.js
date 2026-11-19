@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { VERSES, VERSES_OLD } from './verses.js';
 import { HISTORIAS, POR_TRANSPORTE } from './historias.js';
-import { createHuman, animateHuman } from './human.js';
+import { createHuman, animateHuman, freeHuman } from './human.js';
 import { CHARACTERS, createCharacter, nameSprite } from './characters.js';
 import { Sound2 } from './audio2.js';
 import { PROVINCES, PROV, AIRPORTS, PLACES, MISSIONS, NIVELES, BOUNDS, toXZ, KM, ZONES } from './rd-data.js';
@@ -259,6 +259,8 @@ function spawnVehicles() {
   for (const p of world.ports) { const v = addVeh('lancha', p.boat.x, p.boat.z, p.yaw + Math.PI / 2, [0xf4f4f2, 0xf5c518, 0xc8202a][VEH.length % 3], { port: p }); v.y = 0; }
   for (const line of LINES.rails) { const st = line.stops[0]; const v = addVeh('tren', 0, 0, 0, line.color, { line, s: st.s + 30, dir: 1, auto: 'wait', waitT: 6, stopIdx: 0 }); placeTrain(v); }
 }
+// libera la memoria de un vehículo que se quita (sus materiales son compartidos y se quedan)
+function freeGeo(obj) { obj.traverse(o => { if (o.geometry && !o.userData.shared) o.geometry.dispose(); }); }
 function vehMesh(v) {
   if (!v.obj) { v.obj = makeVehicle(v.kind, v.color); scene.add(v.obj); }
   return v.obj;
@@ -272,8 +274,8 @@ function placeTrain(v) {
 function syncVeh(v) {
   if (v.kind === 'tren') { placeTrain(v); return; }
   const o = v.obj; if (!o) return;
-  o.position.set(v.x, v.y + (v.kind === 'lancha' ? Math.sin(performance.now() / 600 + v.x) * .12 : 0), v.z);
-  o.rotation.set(0, 0, 0); o.rotateY(v.yaw); o.rotateX(-v.pitch); o.rotateZ(v.roll);
+  o.position.set(v.x, v.y + (v.hop || 0) + (v.kind === 'lancha' ? Math.sin(performance.now() / 600 + v.x) * .12 : 0), v.z);
+  o.rotation.set(0, 0, 0); o.rotateY(v.yaw); o.rotateX(-v.pitch - (v.wheelieA || 0) - (v.hop > 0 ? clamp(v.hopV * .03, -.18, .18) : 0)); o.rotateZ(v.roll);
 }
 
 /* =========================================================
@@ -287,6 +289,7 @@ addEventListener('keydown', e => {
   if (state === 'play') {
     if (e.code === 'KeyT' || e.code === 'Enter') takePressed = true;
     if (e.code === 'Space') { jumpPressed = true; e.preventDefault(); }
+    if (e.code === 'KeyX' && P.veh) jumpPressed = true; // calibrar la moto o la bici
     if (e.code === 'KeyM') openMap(); if (e.code === 'KeyP' || e.code === 'Escape') pauseGame();
     if (e.code === 'KeyH' && P.veh) sound.honk(1, 0); if (e.code === 'KeyV') cycleCam();
     if (e.code === 'KeyC') toggleRun(); if (e.code === 'KeyF') toggleFull();
@@ -334,7 +337,7 @@ function input() {
     if (P.veh) { if (Math.abs(jx) < .12) jx = 0; if (jy < 0 && (jy > -.45 || Math.abs(jx) > -jy)) jy = 0; else if (Math.abs(jy) < .12) jy = 0; }
     fx += jx; fz += jy;
   }
-  return { fx: clamp(fx, -1, 1), fz: clamp(fz, -1, 1), up: !!(keys.KeyE || keys.Space && P.veh && P.veh.K.air), down: !!(keys.KeyQ || (keys.ShiftLeft || keys.ShiftRight) && P.veh && P.veh.K.air), run: runToggle || keys.ShiftLeft || keys.ShiftRight, brake: !!(keys.Space || keys.ShiftLeft) };
+  return { fx: clamp(fx, -1, 1), fz: clamp(fz, -1, 1), up: !!(keys.KeyE || keys.Space && P.veh && P.veh.K.air), down: !!(keys.KeyQ || (keys.ShiftLeft || keys.ShiftRight) && P.veh && P.veh.K.air), run: runToggle || keys.ShiftLeft || keys.ShiftRight, brake: !!((keys.Space && !(P.veh && P.veh.K.animal)) || keys.ShiftLeft) };
 }
 
 /* =========================================================
@@ -474,7 +477,7 @@ function arrive() {
   dropPassenger(true);
   showDestMark(false); updMissionHUD();
 }
-function dropPassenger(stay) { if (passenger) { if (!stay) scene.remove(passenger.root); else { const pr = passenger.root; setTimeout(() => scene.remove(pr), 12000); } passenger = null; } }
+function dropPassenger(stay) { if (passenger) { const pr = passenger.root; if (!stay) { scene.remove(pr); freeHuman(pr); } else setTimeout(() => { scene.remove(pr); freeHuman(pr); }, 12000); passenger = null; } }
 function clearMission(silent) { if (waiting) { scene.remove(waiting); waiting = null; } dropPassenger(false); showDestMark(false); M = null; if (!silent) { save.mission = null; persist(); } updMissionHUD(); $('subs').classList.remove('show'); }
 function showResult(st, got) {
   state = 'result'; $('resStars').textContent = st ? '★'.repeat(st) + '☆'.repeat(3 - st) : '⏰';
@@ -612,7 +615,7 @@ function walk(dt) {
    ========================================================= */
 let fuelMsgT = 0;
 function drive(dt) {
-  const v = P.veh, K = v.K, I = input();
+  const v = P.veh, K = v.K, I = input(), jp = jumpPressed; jumpPressed = false;
   const hasFuel = !K.engine || K.rail || v.fuel > 0;
   if (!hasFuel && performance.now() - fuelMsgT > 4000) { fuelMsgT = performance.now(); toast('⛽ ¡Sin combustible! Busca una bomba o pide un galón (R)', '#ff6b6b'); $('btnGallon').classList.remove('hidden'); }
   const thr = hasFuel ? I.fz : Math.min(0, I.fz) * 0;
@@ -622,18 +625,34 @@ function drive(dt) {
   const g0 = groundAt(v.x, v.z);
   const boost = runToggle ? 1.45 : 1; // correr / galope
   const top = K.max * boost * (K.water ? 1 : (g0.road ? (g0.main ? 1 : .85) : K.off));
-  if (thr > 0) v.speed += K.acc * boost * thr * dt * (v.speed < 0 ? 2.5 : 1);
-  else if (thr < 0) v.speed += K.acc * thr * dt * (v.speed > 0 ? 2.2 : .6);
-  else v.speed *= Math.pow(K.water ? .7 : .55, dt);
-  if (I.brake && !K.water) v.speed *= Math.pow(.15, dt);
-  v.speed = clamp(v.speed, -top * .35, top);
-  if (Math.abs(v.speed) > top) v.speed = lerp(v.speed, Math.sign(v.speed) * top, dt * 2);
-  // moto y bici: el giro entra suave (no dobla de golpe)
+  // Hacia atrás SOLO si el jugador lo pide: tirar atrás primero frena hasta detenerse y se queda quieto;
+  // la reversa empieza si sigue aguantando atrás un momento ya parado (antes, al soltar o frenar, retrocedía solo)
+  if (thr > 0) { v.revHold = 0; v.speed += K.acc * boost * thr * dt * (v.speed < 0 ? 2.5 : 1); }
+  else if (thr < 0) {
+    if (v.speed > .05) { v.speed = Math.max(0, v.speed + K.acc * thr * dt * 2.2); v.revHold = 0; }
+    else { v.revHold = (v.revHold || 0) + dt; if (v.revHold > .6) v.speed += K.acc * thr * dt * .6; else v.speed = Math.min(v.speed, 0); }
+  } else {
+    v.revHold = 0; v.speed *= Math.pow(K.water ? .7 : .55, dt);
+    if (Math.abs(v.speed) < .3) v.speed = 0; // sin acelerar se queda quieto, sin deslizarse hacia atrás
+  }
+  if (I.brake && !K.water) { v.speed *= Math.pow(.15, dt); if (Math.abs(v.speed) < .3) v.speed = 0; }
+  // al dejar de correr baja la velocidad suave (antes se cortaba de golpe y parecía que se iba hacia atrás)
+  if (v.speed > top) v.speed = Math.max(top, v.speed - K.acc * 1.2 * dt);
+  v.speed = Math.max(v.speed, -top * .35);
+  // caballo y burro: SALTAR · moto y bici: CALIBRAR (levantar la goma de alante)
   const two = v.kind === 'moto' || v.kind === 'bici';
+  if (jp) {
+    if (K.animal && !(v.hop > 0)) { v.hopV = v.kind === 'burro' ? 5.5 : 7; v.hop = .01; sound.jump(); }
+    else if (two && !keys.Space) { if (v.speed > 4) { v.wheelie = 1.6; sound.jump(); } else toast('🏍️ Toma velocidad para calibrar', '#ffd34d', true); }
+  }
+  if (v.hop > 0) { v.hopV -= 20 * dt; v.hop += v.hopV * dt; if (v.hop <= 0) { v.hop = 0; v.hopV = 0; sound.hoof && sound.hoof(); } }
+  if (v.wheelie > 0) { v.wheelie -= dt; if (I.brake || v.speed < 2) v.wheelie = 0; }
+  v.wheelieA = lerp(v.wheelieA || 0, v.wheelie > 0 ? .42 : 0, Math.min(1, dt * (v.wheelie > 0 ? 5 : 7)));
+  // moto y bici: el giro entra suave (no dobla de golpe)
   v.steerIn = two ? lerp(v.steerIn || 0, I.fx, Math.min(1, dt * 4)) : I.fx;
   const steer = -v.steerIn * K.turn * clamp(Math.abs(v.speed) / 6, 0, 1) * (1 - clamp(Math.abs(v.speed) / (K.max * 1.6), 0, .5));
   v.yaw += steer * Math.sign(v.speed || 1) * dt * Math.sqrt(warpFor(v)); // con ritmo de viaje gira un poco más para tomar las curvas
-  v.roll = lerp(v.roll, two ? -steer * .2 : K.water ? -steer * .12 : 0, dt * 5);
+  v.roll = lerp(v.roll, two ? clamp(-steer * .22 * clamp(Math.abs(v.speed) / 10, 0, 1), -.3, .3) : K.water ? -steer * .12 : 0, dt * 5);
   // en un viaje con pasajero el camino rinde más (ritmo de viaje): mismos km en pantalla, menos minutos;
   // se mueve en pasitos cortos para que los choques sigan funcionando
   const W = warpFor(v), n = Math.max(1, Math.min(12, Math.ceil(W * Math.abs(v.speed) * dt / 2.5))), sdt = dt * W / n, fdt = dt / n;
@@ -771,7 +790,7 @@ function exitVeh() {
 function driveUI(on) {
   document.body.classList.toggle('driving', on); const air = on && P.veh && P.veh.K.air;
   $('tUp').classList.toggle('hidden', !air); $('tDown').classList.toggle('hidden', !air);
-  $('tHonk').classList.toggle('hidden', !on || air); $('tJump').classList.toggle('hidden', on); $('tRun').classList.toggle('hidden', on && (air || !!(P.veh && P.veh.K.rail))); $('tBrake').classList.toggle('hidden', !on || air);
+  $('tHonk').classList.toggle('hidden', !on || air); const hopK = on && P.veh && (P.veh.K.animal || P.veh.kind === 'moto' || P.veh.kind === 'bici'); $('tJump').classList.toggle('hidden', on && !hopK); $('tJump').querySelector('small').textContent = hopK && !P.veh.K.animal ? 'CALIBRAR' : 'SALTAR'; $('tRun').classList.toggle('hidden', on && (air || !!(P.veh && P.veh.K.rail))); $('tBrake').classList.toggle('hidden', !on || air);
   $('gauges').classList.toggle('hidden', !on);
   $('tGas').classList.toggle('hidden', !on); $('tTakeLbl').textContent = on ? 'TOMAR / BAJAR' : 'SUBIR / TOMAR';
 }
@@ -801,7 +820,7 @@ function updateTraffic(dt) {
     animateVehicle(c.obj, dt, c.cur, clockT);
   }
   if ((updateTraffic.t = (updateTraffic.t || 0) - dt) > 0) return; updateTraffic.t = 1;
-  for (let i = TRAFFIC.length - 1; i >= 0; i--) { const c = TRAFFIC[i]; if (c.obj.position.distanceTo(P.pos) > 2600) { scene.remove(c.obj); TRAFFIC.splice(i, 1); } }
+  for (let i = TRAFFIC.length - 1; i >= 0; i--) { const c = TRAFFIC[i]; if (c.obj.position.distanceTo(P.pos) > 2600) { scene.remove(c.obj); freeGeo(c.obj); TRAFFIC.splice(i, 1); } }
   for (let tries = 0; tries < 3 && TRAFFIC.length < want; tries++) {
     let line = null, s = 0;
     const loopsNear = CITY_LOOPS.filter(l => Math.hypot(l.town.p.px - P.pos.x, l.town.p.pz - P.pos.z) < 2200);
@@ -858,7 +877,7 @@ function updateParked(dt) {
     if (v.kind === 'tren' || v === P.veh) continue;
     const d = Math.hypot(v.x - P.pos.x, v.z - P.pos.z);
     if (d < 1800 && !v.obj) { vehMesh(v); v.y = v.kind === 'lancha' ? 0 : groundAt(v.x, v.z).y; syncVeh(v); }
-    else if (d > 2600 && v.obj) { scene.remove(v.obj); v.obj.traverse(o => o.geometry && o.geometry.dispose()); v.obj = null; }
+    else if (d > 2600 && v.obj) { scene.remove(v.obj); freeGeo(v.obj); v.obj = null; }
   }
 }
 
@@ -991,7 +1010,10 @@ function openVerse(after) {
   $('btnVerseOk').disabled = true; $('btnVerseOk').textContent = '📖 Lee el versículo…';
 }
 let verseTimer0 = 1;
-$('btnVerseOk').onclick = () => { if ($('btnVerseOk').disabled) return; sound.click(); $('verse').classList.add('hidden'); state = 'play'; const f = verseDone; verseDone = null; if (f) f(); };
+function closeVerse() { sound.click(); $('verse').classList.add('hidden'); state = 'play'; const f = verseDone; verseDone = null; if (f) f(); }
+$('btnVerseOk').onclick = () => { if ($('btnVerseOk').disabled) return; closeVerse(); };
+// «Saltar verso»: quien no quiera leerlo ahora sigue jugando (el versículo cuenta como visto)
+$('btnVerseSkip').onclick = () => { if (state === 'verse') closeVerse(); };
 
 /* ---------- Bombas y peajes ---------- */
 let fueling = null;
@@ -1023,7 +1045,7 @@ function updateServices(dt) {
     if (v && v.K.ground && d < 22 && !(t.open > 0)) {
       const along = (px - t.x) * Math.sin(t.yaw) + (pz - t.z) * Math.cos(t.yaw);
       if (Math.abs(v.speed) < 2.5) { t.open = 9; sound.bell(); toast(`🚧 ${t.name} · ¡Buen viaje!`, '#f5c518'); }
-      else if (Math.abs(along) < 7) { v.speed *= -.25; if (clockT - t.last > 2) { t.last = clockT; sound.hurt(); toast('🚧 ¡Detente en el peaje para que suba la barrera!', '#ffb36b'); } }
+      else if (Math.abs(along) < 7) { v.speed = 0; if (clockT - t.last > 2) { t.last = clockT; sound.hurt(); toast('🚧 ¡Detente en el peaje para que suba la barrera!', '#ffb36b'); } }
       else if (clockT - t.last > 4) { t.last = clockT; prompt('🚧 Peaje: frena y detente en la caseta'); }
     }
     if (t.open > 0) { t.open -= dt; t.bars.forEach(b => b.rotation.z = lerp(b.rotation.z, 1.4, dt * 6)); } else if (d < 400) t.bars.forEach(b => b.rotation.z = lerp(b.rotation.z, 0, dt * 3));
@@ -1351,7 +1373,7 @@ const prevR = new THREE.WebGLRenderer({ canvas: $('preview'), antialias: true, a
 const prevS = new THREE.Scene(), prevC = new THREE.PerspectiveCamera(30, 1, .1, 50); prevC.position.set(0, 1.1, 4.6); prevC.lookAt(0, .95, 0);
 prevS.add(new THREE.HemisphereLight(0xffffff, 0x445566, 1.4)); const pl2 = new THREE.DirectionalLight(0xffffff, 2.2); pl2.position.set(2, 3, 3); prevS.add(pl2);
 let prevH = null;
-function drawPreview() { if (prevH) prevS.remove(prevH.root); prevH = createHuman(playerOpts(draft)); prevS.add(prevH.root); const c = $('preview'), r = c.getBoundingClientRect(); prevR.setSize(r.width || 220, r.height || 300, false); prevC.aspect = (r.width || 220) / (r.height || 300); prevC.updateProjectionMatrix(); }
+function drawPreview() { if (prevH) { prevS.remove(prevH.root); freeHuman(prevH.root); } prevH = createHuman(playerOpts(draft)); prevS.add(prevH.root); const c = $('preview'), r = c.getBoundingClientRect(); prevR.setSize(r.width || 220, r.height || 300, false); prevC.aspect = (r.width || 220) / (r.height || 300); prevC.updateProjectionMatrix(); }
 (function prevLoop() { requestAnimationFrame(prevLoop); if ($('creator').classList.contains('hidden') || !prevH) return; prevH.root.rotation.y += .01; animateHuman(prevH, .016, { speed: 0, onGround: true, vy: 0, land: 0, t: performance.now() / 1000 }); prevR.render(prevS, prevC); })();
 // Hora del día
 function renderTimeButtons() { document.querySelectorAll('.time-opts').forEach(box => { box.innerHTML = ''; for (const [k, v] of Object.entries(TIMES)) { const b = document.createElement('button'); b.className = 'opt small' + ((save.time || 'dia') === k ? ' sel' : ''); b.textContent = v.name; b.onclick = () => { sound.click(); applyTime(k); }; box.appendChild(b); } }); }

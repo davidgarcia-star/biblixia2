@@ -697,7 +697,8 @@ export function animateHuman(h, dt, { speed, onGround, vy, land, t, gesture = 0,
     P.hipY = horse ? .5 : .52; splay = horse ? .62 : .22;
     P.spineX = horse ? .06 : .16; P.spineY = 0; P.headX = -(horse ? .04 : .14) + Math.sin(t * .6) * .03;
     // conductor: manos al manubrio o a las riendas; pasajero (lean): manos a la cintura del conductor
-    if (lean) { P.s0x = P.s1x = -.75; P.s0z = -.18; P.s1z = .18; P.e0 = P.e1 = -1.0; }
+    // el pasajero va derecho (antes se ladeaba y se veía doblado): espalda recta y manos a la cintura del conductor
+    if (lean) { P.s0x = P.s1x = -.62; P.s0z = -.3; P.s1z = .3; P.e0 = P.e1 = -.85; P.spineX = 0; P.headX = Math.sin(t * .6) * .03; }
     else if (horse) { P.s0x = P.s1x = -.75; P.s0z = .08; P.s1z = -.08; P.e0 = P.e1 = -.9; }
     else { P.s0x = P.s1x = -1.05; P.s0z = -.2; P.s1z = .2; P.e0 = P.e1 = -.35; }
     // bicicleta: las piernas siguen a los pedales (una sube mientras la otra baja)
@@ -731,9 +732,9 @@ export function animateHuman(h, dt, { speed, onGround, vy, land, t, gesture = 0,
   S(h.arms[0].shoulder.rotation, 'z', P.s0z); S(h.arms[1].shoulder.rotation, 'z', P.s1z);
   S(h.arms[0].elbow.rotation, 'x', P.e0); S(h.arms[1].elbow.rotation, 'x', P.e1);
   S(h.spine.rotation, 'x', P.spineX); S(h.spine.rotation, 'y', P.spineY);
-  // abrir las piernas al montar y, si va de pasajero, ladearse un poco para no tapar la cabeza del conductor
+  // abrir las piernas al montar
   S(h.legs[0].thigh.rotation, 'z', -splay); S(h.legs[1].thigh.rotation, 'z', splay);
-  S(h.spine.rotation, 'z', ride && lean ? lean : 0);
+  S(h.spine.rotation, 'z', 0);
   S(h.hips.rotation, 'y', -P.spineY * .6);
   if (swim || h.hips.rotation.x) h.hips.rotation.x = lerp(h.hips.rotation.x, pitch, Math.min(1, dt * 6));
   if (Math.abs(h.hips.rotation.x) < .002) h.hips.rotation.x = 0;
@@ -756,6 +757,21 @@ export function animateHuman(h, dt, { speed, onGround, vy, land, t, gesture = 0,
   }
   const blink = (t % 3.7) < .12;
   for (const e of h.eyes) e.scale.y = blink ? .15 : 1;
+}
+
+/* ---------- Liberar la memoria de una persona que ya no se usa (evita que el juego se congele) ---------- */
+export function freeHuman(root) {
+  if (!root) return;
+  const keep = new Set(texCache.values()), done = new Set();
+  root.traverse(o => {
+    if (o.geometry) o.geometry.dispose();
+    if (!o.material) return;
+    for (const m of [].concat(o.material)) {
+      if (done.has(m)) continue; done.add(m);
+      for (const k of ['map', 'bumpMap', 'normalMap', 'roughnessMap', 'alphaMap', 'emissiveMap']) { const t = m[k]; if (t && !keep.has(t) && !done.has(t)) { done.add(t); t.dispose(); } }
+      m.dispose();
+    }
+  });
 }
 
 /* ---------- Unir mallas estáticas (personajes quietos) ---------- */

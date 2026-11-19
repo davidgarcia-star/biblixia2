@@ -71,6 +71,9 @@ No hay dinero. Cada personaje que llevas a tiempo te regala un **tesoro bíblico
 | Subir, bajar, recoger, echar combustible | `T` | T |
 | Correr | `Shift` o `C` | CORRER |
 | Saltar / freno | `Espacio` | SALTAR / FRENO |
+| Caballo o burro: saltar | `Espacio` | SALTAR |
+| Moto o bici: calibrar (goma de alante arriba) | `X` | CALIBRAR |
+| Versículo: saltar | — | ⏭ Saltar verso |
 | Avión y helicóptero: subir / bajar | `E` / `Q` | ▲ / ▼ |
 | Pito | `H` | PITO |
 | Mapa · cámara · pausa · pantalla completa | `M` · `V` · `P` · `F` | 🗺 · 🎥 · ❚❚ · ⛶ |
