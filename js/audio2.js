@@ -263,20 +263,68 @@ export class Sound2 extends Sound {
       this._eng = { kind, o1, o2, lp, g, src, lfo };
     }
     const e = this._eng, t = a.currentTime;
-    const base = { avion: 70, heli: 45, tren: 38, lancha: 55, moto: 70, carro: 45, jeepeta: 42, guagua: 34 }[kind] || 45;
-    const f = base + rpm * base * 1.6;
-    e.o1.frequency.setTargetAtTime(f, t, .15); e.o2.frequency.setTargetAtTime(f * .5, t, .15);
-    e.lp.frequency.setTargetAtTime((kind === 'avion' ? 900 : 500) + rpm * 1500, t, .2);
+    const base = { avion: 70, heli: 45, tren: 38, lancha: 55, moto: 70, carro: 45, jeepeta: 42, camioneta: 40, guagua: 34 }[kind] || 45;
+    // carros, motor y guagua «cambian de marcha»: el motor sube de tono y baja al pasar a la siguiente
+    const gears = { moto: 5, carro: 5, jeepeta: 5, camioneta: 5, guagua: 4 }[kind];
+    let r = rpm;
+    if (gears) { const gp = Math.min(rpm, .999) * gears, g = Math.floor(gp); r = .18 + (gp - g) * .62 + g / gears * .2; if (rpm < .02) r = .1; }
+    const f = base + r * base * 1.6;
+    e.o1.frequency.setTargetAtTime(f, t, .12); e.o2.frequency.setTargetAtTime(f * .5, t, .12);
+    e.lp.frequency.setTargetAtTime((kind === 'avion' ? 900 : 500) + r * 1500 + rpm * 400, t, .2);
+    // el ruido del aire y de las gomas crece con la velocidad
+    e.src.playbackRate.setTargetAtTime(.45 + rpm * .9, t, .2);
     if (kind === 'heli') e.lfo.frequency.setTargetAtTime(6 + rpm * 4, t, .3);
     if (kind === 'tren') e.lfo.frequency.setTargetAtTime(.5 + rpm * 5, t, .3);
     e.g.gain.setTargetAtTime(this.sfxOn ? vol * (kind === 'avion' ? .07 : .055) : 0, t, .25);
   }
-  engineOff() { this.engine(this._eng ? this._eng.kind : 'x', 0); if (this._eng) { const e = this._eng, a = this.ctx; e.g.gain.setTargetAtTime(0, a.currentTime, .2); setTimeout(() => { if (this._eng === e) { try { e.o1.stop(); e.o2.stop(); e.src.stop(); e.lfo.stop(); } catch (er) {} this._eng = null; } }, 900); } }
+  // Bicicleta: zumbido de las gomas, cadena al pedalear y «tic-tic» del piñón cuando va sin pedalear.
+  // Todo según la velocidad (ratio de 0 a 1). vol 0 la apaga.
+  bike(vol = 0, ratio = 0, pedal = false, road = true) {
+    const a = this.ctx; if (!a || !this.noise) return;
+    if (!this._bike) {
+      if (vol <= 0) return;
+      const src = a.createBufferSource(), bp = a.createBiquadFilter(), g = a.createGain(), hs = a.createBufferSource(), hp = a.createBiquadFilter(), hg = a.createGain();
+      src.buffer = this.noise; src.loop = true; bp.type = 'bandpass'; bp.Q.value = .9; g.gain.value = 0;
+      hs.buffer = this.noise; hs.loop = true; hp.type = 'highpass'; hp.frequency.value = 2500; hg.gain.value = 0; // aire
+      src.connect(bp).connect(g).connect(this.sfx); hs.connect(hp).connect(hg).connect(this.sfx); src.start(); hs.start();
+      this._bike = { src, bp, g, hs, hg, next: a.currentTime, crank: 0 };
+    }
+    const b = this._bike, t = a.currentTime, on = this.sfxOn && vol > 0 ? vol : 0;
+    b.bp.frequency.setTargetAtTime((road ? 260 : 700) + ratio * (road ? 520 : 900), t, .15);
+    b.src.playbackRate.setTargetAtTime(.5 + ratio * .8, t, .15);
+    b.g.gain.setTargetAtTime(on * (road ? .05 : .085) * Math.min(1, ratio * 1.6), t, .15);
+    b.hg.gain.setTargetAtTime(on * .025 * ratio * ratio, t, .25);
+    if (!on || ratio < .03) { b.next = t; return; }
+    // golpecitos programados un poco por delante: piñón libre (rápido) o cadena al pedalear (más lento y grave)
+    while (b.next < t + .12) {
+      const when = Math.max(b.next, t) - t;
+      if (pedal) {
+        this.note(150 + ratio * 80, .05, { type: 'triangle', vol: .018 * on, when, filter: 900, wet: false });
+        if ((b.crank = (b.crank + 1) % 6) === 0) this.note(90, .08, { type: 'sine', vol: .02 * on, when, wet: false }); // vuelta del pedal
+        b.next = Math.max(b.next, t) + .16 - ratio * .09;
+      } else {
+        this.note(3200 + Math.random() * 400, .012, { type: 'square', vol: .008 * on, when, filter: 4500, wet: false });
+        b.next = Math.max(b.next, t) + .09 - ratio * .065;
+      }
+    }
+  }
+  bikeOff() { const b = this._bike; if (!b) return; this.bike(0); const a = this.ctx; b.g.gain.setTargetAtTime(0, a.currentTime, .1); b.hg.gain.setTargetAtTime(0, a.currentTime, .1); setTimeout(() => { if (this._bike === b) { try { b.src.stop(); b.hs.stop(); } catch (e) {} this._bike = null; } }, 600); }
+  engineOff() { this.bikeOff(); this.engine(this._eng ? this._eng.kind : 'x', 0); if (this._eng) { const e = this._eng, a = this.ctx; e.g.gain.setTargetAtTime(0, a.currentTime, .2); setTimeout(() => { if (this._eng === e) { try { e.o1.stop(); e.o2.stop(); e.src.stop(); e.lfo.stop(); } catch (er) {} this._eng = null; } }, 900); } }
   whistle() { // pito del tren
     const a = this.unlock(); if (!a || !this.sfxOn) return;
     for (const f of [587, 740, 880]) this.note(f, 1.3, { type: 'triangle', vol: .05, attack: .05, filter: 2400 });
   }
-  hoof() { this.step('hard', true); }
+  // Cascos del caballo o burro: al paso suenan suaves; al galope, más fuerte y con el «ta-ca-tán» de tres golpes
+  hoof(ratio = .6, surface = 'hard') {
+    const a = this.unlock(); if (!a || !this.sfxOn) return;
+    const fast = ratio > .55;
+    this.step(surface, fast);
+    if (fast) {
+      setTimeout(() => this.step(surface, true), 70 - ratio * 25);
+      if (ratio > .8) setTimeout(() => this.step(surface, true), 130 - ratio * 40);
+      if (Math.random() < ratio * .06) this.note(180, .35, { type: 'sawtooth', vol: .02, filter: 700, slide: -60 }); // resoplido
+    }
+  }
   bell() { this.note(1568, .6, { type: 'sine', vol: .08 }); this.note(2093, .8, { type: 'sine', vol: .05, when: .05 }); }
   cash() { [1318, 1568, 2093].forEach((f, i) => this.note(f, .25, { type: 'triangle', vol: .08, when: i * .07 })); }
   fuelTick() { this.note(880 + Math.random() * 40, .05, { type: 'square', vol: .02, wet: false }); }

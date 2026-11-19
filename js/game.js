@@ -378,14 +378,24 @@ const WARP_TIERRA = 1.25;
 // «Salto de carretera»: el camino que falta para cumplir el ritmo de viaje (mismos km, pocos minutos) se acumula
 // y, cuando vas por la ruta, la pantalla se oscurece un instante y avanzas un tramo de carretera de una vez.
 // Así la velocidad que se ve es moderada y el viaje sigue durando 3, 5 o 7 minutos.
-let skipFx = null, skipMsg = 0;
+let skipFx = null, skipMsg = 0, skipHold = null;
+// termina el salto: cuando el lugar ya está armado (o pasados 4 s) la pantalla aclara suave
+function skipRelease() {
+  if (!skipHold) return;
+  const ready = chunks && chunks.nearReady(P.pos.x, P.pos.z);
+  if (!ready && performance.now() - skipHold.t0 < 4000) return;
+  if (P.veh) P.veh.speed = skipHold.speed;
+  skipHold = null; camFollow.ok = false; camPos.set(1e9, 0, 0);
+  if (skipFx) { skipFx.style.transition = 'opacity .5s ease'; skipFx.style.opacity = '0'; }
+}
 function segDist(px, pz, a, b) {
   const dx = b[0] - a[0], dz = b[1] - a[1], L = dx * dx + dz * dz || 1, t = clamp(((px - a[0]) * dx + (pz - a[1]) * dz) / L, 0, 1);
   return [Math.hypot(px - a[0] - dx * t, pz - a[1] - dz * t), t];
 }
 function roadSkip(v) {
-  // como mucho un salto cada ~10 segundos (para que no parpadee la pantalla)
-  if (!(v.skipAcc > Math.max(2500, (v.skipRate || 0) * 10)) || !M || M.phase !== 'ride' || !R.pts || R.key.indexOf('ride:') !== 0 || v.speed < 3) return;
+  // como mucho un salto cada ~15 segundos (para que no parpadee la pantalla)
+  if (skipHold) return;
+  if (!(v.skipAcc > Math.max(2500, (v.skipRate || 0) * 15)) || !M || M.phase !== 'ride' || !R.pts || R.key.indexOf('ride:') !== 0 || v.speed < 3) return;
   const pts = R.pts, dDest = Math.hypot(M.dest.x - v.x, M.dest.z - v.z);
   if (dDest < v.skipAcc + 2500) { v.skipAcc = 0; return; } // cerca del destino se llega manejando, sin saltos
   // tramo de la ruta donde va el jugador (tiene que ir por la ruta y en su dirección)
@@ -403,13 +413,16 @@ function roadSkip(v) {
   }
   if (left > 0 || i >= pts.length - 1) { v.skipAcc = 0; return; }
   const nb = pts[i + 1], g = groundAt(x, z);
-  if (blocked(x, z) || (g.y < .2 && !g.road)) return;
+  if (blocked(x, z) || !g.road) return; // siempre cae encima de la calle, nunca en el monte
   if (vehHit(v, x, z, Math.atan2(nb[0] - x, nb[1] - z), dynSolids(x, z, v))) return;
   v.x = x; v.z = z; v.y = g.y; v.yaw = Math.atan2(nb[0] - x, nb[1] - z); v.skipAcc = 0; R.idx = i;
-  syncVeh(v); camFollow.ok = false; camPos.set(1e9, 0, 0); // la cámara se coloca de una vez detrás
+  syncVeh(v); P.pos.set(v.x, v.y, v.z); camFollow.ok = false; camPos.set(1e9, 0, 0); // la cámara se coloca de una vez detrás
   if (passenger) PAX.pos.set(v.x, v.y, v.z);
+  // la pantalla se queda oscura hasta que la calle, el terreno y los árboles del lugar nuevo estén armados:
+  // así el paisaje no cambia de golpe delante del jugador (antes aparecía monte donde después salía la calle)
   if (!skipFx) { skipFx = document.createElement('div'); skipFx.style.cssText = 'position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:40;transition:opacity .45s ease'; document.body.appendChild(skipFx); }
-  skipFx.style.transition = 'none'; skipFx.style.opacity = '.85'; void skipFx.offsetWidth; skipFx.style.transition = 'opacity .45s ease'; skipFx.style.opacity = '0';
+  skipFx.style.transition = 'none'; skipFx.style.opacity = '1'; void skipFx.offsetWidth;
+  skipHold = { t0: performance.now(), speed: v.speed };
   if (performance.now() - skipMsg > 60000) { skipMsg = performance.now(); toast('⏩ Avanzando por la carretera…', '#9fd8ff', true); }
 }
 const levelMissions = id => MISSIONS.filter(m => m.nivel === id && CHAR[m.who]);
@@ -735,8 +748,11 @@ function drive(dt) {
   }
   if (!K.water) roadSkip(v);
   if (K.engine && Math.abs(v.speed) > .5) useFuel(v, Math.abs(v.speed) * dt);
-  if (K.engine) sound.engine(v.kind, .6 + Math.abs(v.speed) / K.max * .4, Math.abs(v.speed) / K.max);
-  if (K.animal && Math.abs(v.speed) > 2) { v.hoofT = (v.hoofT || 0) - dt * Math.abs(v.speed); if (v.hoofT <= 0) { v.hoofT = 3.2; sound.hoof(); } }
+  // cada sonido va según la velocidad: parado casi no se oye, a toda velocidad suena fuerte
+  const ratio = clamp(Math.abs(v.speed) / K.max, 0, 1), onRoad = groundAt(v.x, v.z).road;
+  if (K.engine) sound.engine(v.kind, .35 + ratio * .65, ratio);
+  if (v.kind === 'bici') sound.bike && sound.bike(.9, ratio, I.fz > .1, onRoad);
+  if (K.animal && Math.abs(v.speed) > 1) { v.hoofT = (v.hoofT || 0) - dt * Math.abs(v.speed); if (v.hoofT <= 0) { v.hoofT = ratio > .55 ? 4.2 : 2.6; sound.hoof(ratio, onRoad ? 'hard' : 'grass'); } }
 }
 function driveAir(v, dt, I, hasFuel) {
   const K = v.K, u = vehMesh(v).userData; u.engineOn = hasFuel;
@@ -778,7 +794,7 @@ function driveAir(v, dt, I, hasFuel) {
   const b = blocked(nx, nz, true);
   if (b) { blockMsg(b); v.yaw += Math.PI * .5 * dt; v.speed *= .98; } else { v.x = nx; v.z = nz; }
   if (hasFuel) useFuel(v, (Math.abs(v.speed) + (v.kind === 'heli' && !v.onGround ? 30 : 3)) * dt);
-  sound.engine(v.kind, hasFuel ? .7 + v.speed / K.max * .3 : 0, v.kind === 'heli' ? .4 + v.speed / K.max * .5 : v.speed / K.max);
+  sound.engine(v.kind, hasFuel ? .45 + clamp(v.speed / K.max, 0, 1) * .55 : 0, v.kind === 'heli' ? .4 + v.speed / K.max * .5 : v.speed / K.max);
 }
 function driveTrain(v, dt, I) {
   const K = v.K;
@@ -787,7 +803,7 @@ function driveTrain(v, dt, I) {
   v.s += v.speed * dt * v.dir * warpFor(v);
   if (v.s < 20 || v.s > v.line.len - 20) { v.s = clamp(v.s, 20, v.line.len - 20); v.speed = 0; toast('🚆 Fin de la línea: cambia de sentido con ⬇', '#ffd34d'); v.dir *= -1; }
   placeTrain(v);
-  sound.engine('tren', .7 + Math.abs(v.speed) / K.max * .3, Math.abs(v.speed) / K.max);
+  sound.engine('tren', .4 + Math.abs(v.speed) / K.max * .6, Math.abs(v.speed) / K.max);
 }
 const TANK = { moto: 60000, carro: 90000, jeepeta: 80000, camioneta: 85000, guagua: 85000, lancha: 45000, avion: 320000, heli: 140000 };
 function useFuel(v, dist) { const T = TANK[v.kind]; if (!T) return; v.fuel = Math.max(0, v.fuel - dist / T); if (v.fuel < .15 && !v.lowWarn) { v.lowWarn = true; toast('⛽ Queda poco combustible', '#ffb36b'); sound.bell(); } }
@@ -1183,7 +1199,8 @@ function loop() {
   requestAnimationFrame(loop);
   const now = performance.now(), dt = Math.min(.05, (now - lastNow) / 1000); lastNow = now; clockT += dt;
   if (!world) return;
-  if (state === 'play') { step(dt); updateCamera(dt); updateHUD(dt); drawMini(dt); watchFps((now - (loop.prev || now)) / 1000); }
+  if (state === 'play' && skipHold) { skipRelease(); updateCamera(dt); } // mientras se arma el lugar nuevo todo espera (también el reloj)
+  else if (state === 'play') { step(dt); updateCamera(dt); updateHUD(dt); drawMini(dt); watchFps((now - (loop.prev || now)) / 1000); }
   else if (state === 'verse') { verseTimer -= dt; $('vProg').style.width = (clamp(1 - verseTimer / verseTimer0, 0, 1) * 100) + '%'; if (verseTimer <= 0 && $('btnVerseOk').disabled) { $('btnVerseOk').disabled = false; $('btnVerseOk').textContent = '✅ ¡Amén! Continuar'; $('verse').classList.add('ready'); } }
   else if (state === 'menu' || (state === 'loading2' && !entering)) menuFly(dt);
   loop.prev = now;
@@ -1195,7 +1212,7 @@ function loop() {
   if (water) water.userData.follow(c.x, c.z, dt);
   lamp.position.set(P.pos.x, P.pos.y + 3, P.pos.z); lamp.intensity = save.time === 'noche' && state === 'play' && !P.veh ? 40 : 0;
   const onP = state === 'play' || state === 'talk' || state === 'verse' || state === 'map' || state === 'pause' || entering;
-  if (chunks) chunks.update(onP ? P.pos.x : camLook.x, onP ? P.pos.z : camLook.z, farMesh, state === 'loading2' ? 40 : 7);
+  if (chunks) chunks.update(onP ? P.pos.x : camLook.x, onP ? P.pos.z : camLook.z, farMesh, state === 'loading2' || skipHold ? 40 : 7);
   if ((detT -= dt) <= 0) { detT = .5; for (const o of DETAIL) o.obj.visible = Math.abs(o.x - c.x) < o.d * LR && Math.abs(o.z - c.z) < o.d * LR; for (const t of TOWNS) { const d = Math.hypot(t.p.px - c.x, t.p.pz - c.z); t.label.visible = d > 500 && d < 22000; } }
   renderer.render(scene, camera);
 }

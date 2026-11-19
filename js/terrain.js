@@ -318,7 +318,9 @@ export class Chunks {
       this.map.set(q.k, c);
     }
     // árboles y casitas: uno por cuadro, solo si en este cuadro no se armó terreno (o si está cargando)
-    while (this.decoQ.length && (budgetMs > 12 || !built) && performance.now() - t0 < Math.max(budgetMs, 4)) {
+    // los pedazos de cerca (con calle, árboles y casas) van primero: no esperan a que se arme el terreno lejano
+    const nearFirst = !this.queue.length || this.queue[0].d > (GFX.lite ? 1 : 2);
+    while (this.decoQ.length && (budgetMs > 12 || !built || nearFirst) && performance.now() - t0 < Math.max(budgetMs, 4)) {
       const d = this.decoQ.shift(), c = this.map.get(d.k);
       if (c && !c.deco && c.res >= (GFX.lite ? 32 : 50)) c.deco = this.decorate(d.x, d.z);
       if (budgetMs <= 12) break;
@@ -331,6 +333,12 @@ export class Chunks {
     if (!keep) this.map.delete(k);
   }
   pending() { return this.queue.length; }
+  // ¿ya está armado con detalle (terreno, calles y decoración) todo lo de cerca de (px, pz)?
+  nearReady(px, pz) {
+    const cx = Math.floor(px / CH), cz = Math.floor(pz / CH), R = GFX.lite ? 1 : 2, full = GFX.lite ? 32 : 50;
+    for (let j = -R; j <= R; j++) for (let i = -R; i <= R; i++) { const c = this.map.get((cx + i) + ',' + (cz + j)); if (!c || c.res < full || !c.deco) return false; }
+    return true;
+  }
 }
 
 /* ---------- 8) Cintas de carretera, vía y ríos por pedazos ---------- */
