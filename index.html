@@ -86,6 +86,7 @@ window.NAVIDAD_CFG = {
       <button class="ib" id="btnSfx" aria-label="Efectos">🔊</button>
     </div>
     <button id="btnRun" class="run-btn" type="button" title="Correr (tecla C)">🏃 <b>CORRER</b><small>Tecla C</small></button>
+    <button id="btnHop" class="run-btn hidden" type="button" title="Saltar o calibrar">🐎 <b>SALTAR</b><small>Espacio</small></button>
   </div>
   <div id="hProv" class="hpanel prov">📍</div>
   <div class="mini-wrap"><canvas id="minimap" width="220" height="220"></canvas><span class="mini-n">N</span></div>
@@ -296,7 +297,7 @@ window.NAVIDAD_CFG = {
   var abierto = hechos >= NIVELES.length;
   try { if (new URLSearchParams(location.search).get('probar') === 'luisdavid') abierto = true; } catch (e) {}
   if (abierto) {
-    var m = document.createElement('script'); m.type = 'module'; m.src = 'js/biblixia2.min.js?v=20261118a';
+    var m = document.createElement('script'); m.type = 'module'; m.src = 'js/biblixia2.min.js?v=20261118b';
     document.body.appendChild(m);
     return;
   }

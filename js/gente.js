@@ -1,3 +1,4 @@
+import { makeBox } from './collide.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { createHuman, bakeStatic } from './human.js';
@@ -72,6 +73,11 @@ function loops(town) {
 /* ---------- Estado ---------- */
 const PLAT = [], crowdA = [], crowdB = [];
 let scene = null, buildQ = [], TW = [];
+// personas visibles y carritos de plátanos cercanos como sólidos: ni a pie ni en caballo o moto se atraviesan
+export function peopleSolids(x, z, out) {
+  for (const m of crowdA.concat(crowdB)) { if (!m.visible) continue; const p = m.position; if (Math.abs(p.x - x) < 30 && Math.abs(p.z - z) < 30) out.push(makeBox(p.x, p.z, .32, .32, 0, p.y + 1.9)); }
+  for (const q of PLAT) { if (!q.obj || !q.obj.visible) continue; const p = q.obj.position, y = q.obj.rotation.y; if (Math.abs(p.x - x) < 30 && Math.abs(p.z - z) < 30) out.push(makeBox(p.x, p.z, 1.2, 2.95, y, p.y + 2.4)); }
+}
 export function initGente(sc, towns) {
   scene = sc; TW = towns;
   for (const t of towns) loops(t);

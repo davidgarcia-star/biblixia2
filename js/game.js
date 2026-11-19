@@ -13,7 +13,7 @@ const groundAt = (x, z) => { const g = groundAt0(x, z), p = padAt(x, z); return 
 import { makeVehicle, animateVehicle, KINDS, TRAFFIC_COLORS, PUBLICO_COLORS, addPublicoSign } from './vehicles.js';
 import { buildBaseMap, drawMap } from './maps.js';
 import { findRoute, closestOnRoute } from './route.js';
-import { initGente, updateGente, CITY_LOOPS } from './gente.js';
+import { initGente, updateGente, CITY_LOOPS, peopleSolids } from './gente.js';
 import { bakeInPlace } from './human.js';
 import { makeBox, resolve as resolveHit } from './collide.js';
 
@@ -326,7 +326,8 @@ tap('tTake', () => takePressed = true); tap('tJump', () => jumpPressed = true); 
 // Correr: disponible siempre, sin importar el nivel (Básico, Intermedio o Avanzado). A pie corre y en
 // caballo, burro, bici, moto, carro, guagua o lancha va más rápido (galope / turbo).
 function toggleRun() { runToggle = !runToggle; for (const id of ['tRun', 'btnRun']) $(id).classList.toggle('active', runToggle); toast(runToggle ? (P.veh ? '🏃 Correr: más rápido' : '🏃 Correr') : (P.veh ? '🐢 Velocidad normal' : '🚶 Caminar'), '#ffd34d', true); }
-$('btnRun').onclick = () => toggleRun(); if (isTouch) $('btnRun').classList.add('hidden'); // en el teléfono ya está el botón CORRER de abajo
+$('btnRun').onclick = () => toggleRun();
+$('btnHop').onclick = () => { jumpPressed = true; $('btnHop').blur(); }; if (isTouch) $('btnRun').classList.add('hidden'); // en el teléfono ya está el botón CORRER de abajo
 function input() {
   let fx = 0, fz = 0;
   if (keys.KeyW || keys.ArrowUp) fz += 1; if (keys.KeyS || keys.ArrowDown) fz -= 1;
@@ -553,7 +554,9 @@ function blocked(x, z, air) {
 }
 /* ---------- choques con vehículos, edificios y objetos ---------- */
 const DIM = k => (KINDS[k] && KINDS[k].dim) || [1, 2, 0];
-const vehBox = (x, z, yaw, kind) => { const [hw, hl, off] = DIM(kind); return makeBox(x + Math.sin(yaw) * off, z + Math.cos(yaw) * off, hw, hl, yaw); };
+// altura de cada vehículo (el caballo puede brincar por encima de los más bajos que su salto)
+const HGT = { bici: 1.2, moto: 1.2, carro: 1.5, jeepeta: 1.8, camioneta: 1.9, guagua: 3.0, caballo: 1.7, burro: 1.3, lancha: 1.2 };
+const vehBox = (x, z, yaw, kind, y = -1e9) => { const [hw, hl, off] = DIM(kind); return makeBox(x + Math.sin(yaw) * off, z + Math.cos(yaw) * off, hw, hl, yaw, y + (HGT[kind] || 4)); };
 const DYN = [];
 // vehículos cercanos (estacionados, tráfico y vagones del tren) como cajas sólidas
 function dynSolids(x, z, skip) {
@@ -563,9 +566,12 @@ function dynSolids(x, z, skip) {
     if (v.kind === 'tren') { if (v.obj && v.obj.visible) for (const c of v.obj.userData.cars) if (Math.abs(c.position.x - x) < 40 && Math.abs(c.position.z - z) < 40) DYN.push(makeBox(c.position.x, c.position.z, 1.7, v.obj.userData.carLen / 2 - .3, c.rotation.y)); continue; }
     if (Math.abs(v.x - x) > 30 || Math.abs(v.z - z) > 30) continue;
     if (v.K.air && !v.onGround) continue;
-    DYN.push(vehBox(v.x, v.z, v.yaw, v.kind));
+    DYN.push(vehBox(v.x, v.z, v.yaw, v.kind, v.y));
   }
-  for (const c of TRAFFIC) { const o = c.obj.position; if (Math.abs(o.x - x) < 30 && Math.abs(o.z - z) < 30) DYN.push(vehBox(o.x, o.z, c.obj.rotation.y, c.kind)); }
+  for (const c of TRAFFIC) { const o = c.obj.position; if (Math.abs(o.x - x) < 30 && Math.abs(o.z - z) < 30) DYN.push(vehBox(o.x, o.z, c.obj.rotation.y, c.kind, o.y)); }
+  // personas: la gente del pueblo, el platanero y el personaje que espera
+  peopleSolids(x, z, DYN);
+  if (waiting && waiting.visible !== false) { const w = waiting.position; if (Math.abs(w.x - x) < 30 && Math.abs(w.z - z) < 30) DYN.push(makeBox(w.x, w.z, .35, .35, 0, w.y + 1.9)); }
   return DYN;
 }
 // círculos a lo largo del vehículo: si alguno choca devuelve el empuje para separarlo
@@ -574,7 +580,7 @@ function vehHit(v, x, z, yaw, dyn) {
   let ex = 0, ez = 0, hit = false;
   for (let i = 0; i < n; i++) {
     const lz = off + (n === 1 ? 0 : -hl + hw + i * (2 * (hl - hw)) / (n - 1)), cx = x + sy * lz, cz = z + cy * lz;
-    const r = resolveHit(cx, cz, hw * .95, v.y + .4, dyn);
+    const r = resolveHit(cx, cz, hw * .95, v.y + (v.hop || 0) + .4, dyn);
     if (r.hit) { hit = true; ex += r.x - cx; ez += r.z - cz; }
   }
   return hit ? [ex / n, ez / n] : null;
@@ -630,7 +636,7 @@ function drive(dt) {
   if (thr > 0) { v.revHold = 0; v.speed += K.acc * boost * thr * dt * (v.speed < 0 ? 2.5 : 1); }
   else if (thr < 0) {
     if (v.speed > .05) { v.speed = Math.max(0, v.speed + K.acc * thr * dt * 2.2); v.revHold = 0; }
-    else { v.revHold = (v.revHold || 0) + dt; if (v.revHold > .6) v.speed += K.acc * thr * dt * .6; else v.speed = Math.min(v.speed, 0); }
+    else { v.revHold = (v.revHold || 0) + dt; if (v.revHold > (K.animal ? .15 : .35)) v.speed += K.acc * thr * dt * (K.animal ? 1.6 : .9); else v.speed = Math.min(v.speed, 0); }
   } else {
     v.revHold = 0; v.speed *= Math.pow(K.water ? .7 : .55, dt);
     if (Math.abs(v.speed) < .3) v.speed = 0; // sin acelerar se queda quieto, sin deslizarse hacia atrás
@@ -638,11 +644,11 @@ function drive(dt) {
   if (I.brake && !K.water) { v.speed *= Math.pow(.15, dt); if (Math.abs(v.speed) < .3) v.speed = 0; }
   // al dejar de correr baja la velocidad suave (antes se cortaba de golpe y parecía que se iba hacia atrás)
   if (v.speed > top) v.speed = Math.max(top, v.speed - K.acc * 1.2 * dt);
-  v.speed = Math.max(v.speed, -top * .35);
+  v.speed = Math.max(v.speed, -top * (K.animal ? .45 : .35));
   // caballo y burro: SALTAR · moto y bici: CALIBRAR (levantar la goma de alante)
   const two = v.kind === 'moto' || v.kind === 'bici';
   if (jp) {
-    if (K.animal && !(v.hop > 0)) { v.hopV = v.kind === 'burro' ? 5.5 : 7; v.hop = .01; sound.jump(); }
+    if (K.animal && !(v.hop > 0)) { v.hopV = v.kind === 'burro' ? 8 : 11.5; v.hop = .01; sound.jump(); } // caballo: ~3,3 m (pasa por encima de carros y guaguas) · burro: ~1,6 m
     else if (two && !keys.Space) { if (v.speed > 4) { v.wheelie = 1.6; sound.jump(); } else toast('🏍️ Toma velocidad para calibrar', '#ffd34d', true); }
   }
   if (v.hop > 0) { v.hopV -= 20 * dt; v.hop += v.hopV * dt; if (v.hop <= 0) { v.hop = 0; v.hopV = 0; sound.hoof && sound.hoof(); } }
@@ -655,7 +661,7 @@ function drive(dt) {
   v.roll = lerp(v.roll, two ? clamp(-steer * .22 * clamp(Math.abs(v.speed) / 10, 0, 1), -.3, .3) : K.water ? -steer * .12 : 0, dt * 5);
   // en un viaje con pasajero el camino rinde más (ritmo de viaje): mismos km en pantalla, menos minutos;
   // se mueve en pasitos cortos para que los choques sigan funcionando
-  const W = warpFor(v), n = Math.max(1, Math.min(12, Math.ceil(W * Math.abs(v.speed) * dt / 2.5))), sdt = dt * W / n, fdt = dt / n;
+  const W = warpFor(v), n = Math.max(1, Math.min(24, Math.ceil(W * Math.abs(v.speed) * dt / 1.0))), sdt = dt * W / n, fdt = dt / n;
   for (let si = 0, stop = false; si < n && !stop; si++) {
     let nx = v.x + Math.sin(v.yaw) * v.speed * sdt, nz = v.z + Math.cos(v.yaw) * v.speed * sdt;
     // choques: no se pasa por encima de edificios, árboles, postes ni otros vehículos
@@ -790,7 +796,8 @@ function exitVeh() {
 function driveUI(on) {
   document.body.classList.toggle('driving', on); const air = on && P.veh && P.veh.K.air;
   $('tUp').classList.toggle('hidden', !air); $('tDown').classList.toggle('hidden', !air);
-  $('tHonk').classList.toggle('hidden', !on || air); const hopK = on && P.veh && (P.veh.K.animal || P.veh.kind === 'moto' || P.veh.kind === 'bici'); $('tJump').classList.toggle('hidden', on && !hopK); $('tJump').querySelector('small').textContent = hopK && !P.veh.K.animal ? 'CALIBRAR' : 'SALTAR'; $('tRun').classList.toggle('hidden', on && (air || !!(P.veh && P.veh.K.rail))); $('tBrake').classList.toggle('hidden', !on || air);
+  $('tHonk').classList.toggle('hidden', !on || air); const hopK = on && P.veh && (P.veh.K.animal || P.veh.kind === 'moto' || P.veh.kind === 'bici'); $('tJump').classList.toggle('hidden', on && !hopK); $('tJump').querySelector('small').textContent = hopK && !P.veh.K.animal ? 'CALIBRAR' : 'SALTAR';
+  $('btnHop').classList.toggle('hidden', !hopK || isTouch); if (hopK) $('btnHop').innerHTML = P.veh.K.animal ? '🐎 <b>SALTAR</b><small>Espacio</small>' : '🏍️ <b>CALIBRAR</b><small>Tecla X</small>'; $('tRun').classList.toggle('hidden', on && (air || !!(P.veh && P.veh.K.rail))); $('tBrake').classList.toggle('hidden', !on || air);
   $('gauges').classList.toggle('hidden', !on);
   $('tGas').classList.toggle('hidden', !on); $('tTakeLbl').textContent = on ? 'TOMAR / BAJAR' : 'SUBIR / TOMAR';
 }

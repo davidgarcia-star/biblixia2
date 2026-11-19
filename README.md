@@ -49,7 +49,7 @@ Cada uno de los 41 personajes cuenta **su propia historia** mientras lo llevas, 
 A pie, 🚲 bicicleta, 🏍️ motor, 🚗 carro, 🚙 jeepeta, 🛻 camioneta, 🚌 guagua, 🐎 caballo, 🫏 burro, 🚤 lancha, ✈️ avión, 🚁 helicóptero y 🚆 tren. También hay tráfico en las carreteras, aviones en el cielo y trenes que paran en las estaciones.
 
 ## Choques
-El jugador no atraviesa edificios, iglesias, árboles, postes, bombas, peajes ni vehículos, ni a pie ni manejando. Si chocas, el vehículo rebota. El tráfico frena y toca bocina si te le pones delante. En carro, jeepeta, camioneta, guagua, avión, helicóptero y tren el jugador y el personaje van adentro (no se ven por fuera).
+El jugador no atraviesa edificios, iglesias, árboles, postes, bombas, peajes, vehículos ni personas, ni a pie ni manejando. Si chocas, el vehículo rebota. El tráfico frena y toca bocina si te le pones delante. En carro, jeepeta, camioneta, guagua, avión, helicóptero y tren el jugador y el personaje van adentro (no se ven por fuera).
 
 ## Combustible
 Los vehículos de motor gastan combustible y en pantalla hay un medidor. Se llena en las bombas ⛽: hay una en cada provincia y otras a lo largo de las autopistas. Los aviones y helicópteros cargan en los aeropuertos y las lanchas en los muelles. Si el tanque se vacía, se puede pedir un galón de emergencia.
@@ -71,8 +71,8 @@ No hay dinero. Cada personaje que llevas a tiempo te regala un **tesoro bíblico
 | Subir, bajar, recoger, echar combustible | `T` | T |
 | Correr | `Shift` o `C` | CORRER |
 | Saltar / freno | `Espacio` | SALTAR / FRENO |
-| Caballo o burro: saltar | `Espacio` | SALTAR |
-| Moto o bici: calibrar (goma de alante arriba) | `X` | CALIBRAR |
+| Caballo o burro: saltar (el caballo brinca por encima de un vehículo) | `Espacio` o botón SALTAR | SALTAR |
+| Moto o bici: calibrar (goma de alante arriba) | `X` o botón CALIBRAR | CALIBRAR |
 | Versículo: saltar | — | ⏭ Saltar verso |
 | Avión y helicóptero: subir / bajar | `E` / `Q` | ▲ / ▼ |
 | Pito | `H` | PITO |

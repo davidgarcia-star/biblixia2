@@ -70,7 +70,7 @@ export function resolve(x, z, r, y = 0, extra = null) {
       if (y > b.top - .15) continue;
       const e = circleVsBox(x, z, r, b); if (e) { x += e[0]; z += e[1]; hit = moved = true; }
     }
-    if (extra) for (const b of extra) { const e = circleVsBox(x, z, r, b); if (e) { x += e[0]; z += e[1]; hit = moved = true; } }
+    if (extra) for (const b of extra) { if (y > b.top - .15) continue; const e = circleVsBox(x, z, r, b); if (e) { x += e[0]; z += e[1]; hit = moved = true; } }
     if (!moved) break;
   }
   return { x, z, hit };
