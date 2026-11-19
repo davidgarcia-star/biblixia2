@@ -289,7 +289,6 @@ addEventListener('keydown', e => {
   if (state === 'play') {
     if (e.code === 'KeyT' || e.code === 'Enter') takePressed = true;
     if (e.code === 'Space') { jumpPressed = true; e.preventDefault(); }
-    if (e.code === 'KeyX' && P.veh) jumpPressed = true; // calibrar la moto o la bici
     if (e.code === 'KeyM') openMap(); if (e.code === 'KeyP' || e.code === 'Escape') pauseGame();
     if (e.code === 'KeyH' && P.veh) sound.honk(1, 0); if (e.code === 'KeyV') cycleCam();
     if (e.code === 'KeyC') toggleRun(); if (e.code === 'KeyF') toggleFull();
@@ -302,8 +301,8 @@ addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 // cámara: arrastrar para girar, rueda para acercar
 const cam = { yaw: 0, pitch: .22, dist: 7, drag: false, lx: 0, ly: 0, idle: 0, mode: 0 };
 canvas.addEventListener('pointerdown', e => { if (e.pointerType === 'touch') return; cam.drag = true; cam.lx = e.clientX; cam.ly = e.clientY; });
-addEventListener('pointerup', () => cam.drag = false);
-addEventListener('pointermove', e => { if (!cam.drag) return; cam.yaw -= (e.clientX - cam.lx) * .006; cam.pitch = clamp(cam.pitch + (e.clientY - cam.ly) * .004, -.15, 1.25); cam.lx = e.clientX; cam.ly = e.clientY; cam.idle = 0; });
+addEventListener('pointerup', () => cam.drag = false); addEventListener('pointercancel', () => cam.drag = false); addEventListener('blur', () => cam.drag = false);
+addEventListener('pointermove', e => { if (!cam.drag) return; if (e.pointerType !== 'touch' && !e.buttons) { cam.drag = false; return; } /* si se soltó el botón fuera de la ventana, la vista ya no sigue girando sola */ cam.yaw -= (e.clientX - cam.lx) * .006; cam.pitch = clamp(cam.pitch + (e.clientY - cam.ly) * .004, -.15, 1.25); cam.lx = e.clientX; cam.ly = e.clientY; cam.idle = 0; });
 canvas.addEventListener('wheel', e => { cam.zoom = clamp((cam.zoom || 1) * (e.deltaY > 0 ? 1.12 : .89), .45, 3.5); }, { passive: true });
 const CAMS = [1, .6, 1.8];
 function cycleCam() { cam.mode = (cam.mode + 1) % CAMS.length; cam.zoom = CAMS[cam.mode]; toast(['🎥 Vista normal', '🎥 Vista cerca', '🎥 Vista lejos'][cam.mode], '#ffd34d', true); }
@@ -338,7 +337,7 @@ function input() {
     if (P.veh) { if (Math.abs(jx) < .12) jx = 0; if (jy < 0 && (jy > -.45 || Math.abs(jx) > -jy)) jy = 0; else if (Math.abs(jy) < .12) jy = 0; }
     fx += jx; fz += jy;
   }
-  return { fx: clamp(fx, -1, 1), fz: clamp(fz, -1, 1), up: !!(keys.KeyE || keys.Space && P.veh && P.veh.K.air), down: !!(keys.KeyQ || (keys.ShiftLeft || keys.ShiftRight) && P.veh && P.veh.K.air), run: runToggle || keys.ShiftLeft || keys.ShiftRight, brake: !!((keys.Space && !(P.veh && P.veh.K.animal)) || keys.ShiftLeft) };
+  return { fx: clamp(fx, -1, 1), fz: clamp(fz, -1, 1), up: !!(keys.KeyE || keys.Space && P.veh && P.veh.K.air), down: !!(keys.KeyQ || (keys.ShiftLeft || keys.ShiftRight) && P.veh && P.veh.K.air), run: runToggle || keys.ShiftLeft || keys.ShiftRight, brake: !!((keys.Space && !(P.veh && (P.veh.K.animal || P.veh.kind === 'moto' || P.veh.kind === 'bici'))) || keys.ShiftLeft) }; // Espacio: caballo y burro saltan · moto y bici calibran (no saltan)
 }
 
 /* =========================================================
@@ -688,7 +687,7 @@ function drive(dt) {
   const two = v.kind === 'moto' || v.kind === 'bici';
   if (jp) {
     if (K.animal && !(v.hop > 0)) { v.hopV = v.kind === 'burro' ? 8 : 11.5; v.hop = .01; sound.jump(); } // caballo: ~3,3 m (pasa por encima de carros y guaguas) · burro: ~1,6 m
-    else if (two && !keys.Space) { if (v.speed > 4) { v.wheelie = 1.6; sound.jump(); } else toast('🏍️ Toma velocidad para calibrar', '#ffd34d', true); }
+    else if (two) { if (v.speed > 4) { v.wheelie = 1.6; sound.jump(); } else toast('🏍️ Toma velocidad para calibrar', '#ffd34d', true); }
   }
   if (v.hop > 0) { v.hopV -= 20 * dt; v.hop += v.hopV * dt; if (v.hop <= 0) { v.hop = 0; v.hopV = 0; sound.hoof && sound.hoof(); } }
   if (v.wheelie > 0) { v.wheelie -= dt; if (I.brake || v.speed < 2) v.wheelie = 0; }
@@ -840,7 +839,7 @@ function driveUI(on) {
   document.body.classList.toggle('driving', on); const air = on && P.veh && P.veh.K.air;
   $('tUp').classList.toggle('hidden', !air); $('tDown').classList.toggle('hidden', !air);
   $('tHonk').classList.toggle('hidden', !on || air); const hopK = on && P.veh && (P.veh.K.animal || P.veh.kind === 'moto' || P.veh.kind === 'bici'); $('tJump').classList.toggle('hidden', on && !hopK); $('tJump').querySelector('small').textContent = hopK && !P.veh.K.animal ? 'CALIBRAR' : 'SALTAR';
-  $('btnHop').classList.toggle('hidden', !hopK || isTouch); if (hopK) $('btnHop').innerHTML = P.veh.K.animal ? '🐎 <b>SALTAR</b><small>Espacio</small>' : '🏍️ <b>CALIBRAR</b><small>Tecla X</small>'; $('tRun').classList.toggle('hidden', on && (air || !!(P.veh && P.veh.K.rail))); $('tBrake').classList.toggle('hidden', !on || air);
+  $('btnHop').classList.toggle('hidden', !hopK || isTouch); if (hopK) $('btnHop').innerHTML = P.veh.K.animal ? '🐎 <b>SALTAR</b><small>Espacio</small>' : '🏍️ <b>CALIBRAR</b><small>Espacio</small>'; $('tRun').classList.toggle('hidden', on && (air || !!(P.veh && P.veh.K.rail))); $('tBrake').classList.toggle('hidden', !on || air);
   $('gauges').classList.toggle('hidden', !on);
   $('tGas').classList.toggle('hidden', !on); $('tTakeLbl').textContent = on ? 'TOMAR / BAJAR' : 'SUBIR / TOMAR';
 }
@@ -942,7 +941,10 @@ function updateCamera(dt) {
   if (v) { const pp = v.kind === 'tren' ? v.obj.userData.cars[0].position : v.obj.position; tx = pp.x; ty = pp.y + (K.air ? 3 : 1.6); tz = pp.z; yaw = (v.kind === 'tren' ? v.obj.userData.cars[0].rotation.y : v.yaw); }
   else { tx = P.pos.x; ty = P.pos.y + 1.6; tz = P.pos.z; yaw = P.heading; }
   cam.idle += dt;
-  if (v && cam.idle > 1.5) cam.yaw = lerp(cam.yaw, 0, dt * 1.5);
+  // en un transporte la vista que giraste con el ratón vuelve detrás por el camino más corto
+  // (antes, si se había girado varias vueltas, la cámara daba vueltas sola y se «descontrolaba»)
+  if (v) cam.yaw = Math.atan2(Math.sin(cam.yaw), Math.cos(cam.yaw));
+  if (v && cam.idle > 1.5 && !cam.drag) cam.yaw = lerp(cam.yaw, 0, Math.min(1, dt * 1.5));
   const a = (v ? yaw : 0) + cam.yaw + Math.PI, pitch = cam.pitch + (K && K.air && !v.onGround ? .08 : 0);
   const want = new THREE.Vector3(tx + Math.sin(a) * dist * Math.cos(pitch), ty + Math.sin(pitch) * dist + 1, tz + Math.cos(a) * dist * Math.cos(pitch));
   const gy = Math.max(groundAt(want.x, want.z).y, 0) + 1.2; if (want.y < gy) want.y = gy;
