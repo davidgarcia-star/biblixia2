@@ -374,6 +374,45 @@ function warpFor(v) {
   const need = M.km * 1.35 / (M.total * .75); // unidades por segundo que hacen falta
   return clamp(need / (v.K.max * .85), 1, 40);
 }
+// En tierra el vehículo o animal con pasajero va casi igual que solo (antes iba hasta 40 veces más rápido)
+const WARP_TIERRA = 1.25;
+// «Salto de carretera»: el camino que falta para cumplir el ritmo de viaje (mismos km, pocos minutos) se acumula
+// y, cuando vas por la ruta, la pantalla se oscurece un instante y avanzas un tramo de carretera de una vez.
+// Así la velocidad que se ve es moderada y el viaje sigue durando 3, 5 o 7 minutos.
+let skipFx = null, skipMsg = 0;
+function segDist(px, pz, a, b) {
+  const dx = b[0] - a[0], dz = b[1] - a[1], L = dx * dx + dz * dz || 1, t = clamp(((px - a[0]) * dx + (pz - a[1]) * dz) / L, 0, 1);
+  return [Math.hypot(px - a[0] - dx * t, pz - a[1] - dz * t), t];
+}
+function roadSkip(v) {
+  // como mucho un salto cada ~10 segundos (para que no parpadee la pantalla)
+  if (!(v.skipAcc > Math.max(2500, (v.skipRate || 0) * 10)) || !M || M.phase !== 'ride' || !R.pts || R.key.indexOf('ride:') !== 0 || v.speed < 3) return;
+  const pts = R.pts, dDest = Math.hypot(M.dest.x - v.x, M.dest.z - v.z);
+  if (dDest < v.skipAcc + 2500) { v.skipAcc = 0; return; } // cerca del destino se llega manejando, sin saltos
+  // tramo de la ruta donde va el jugador (tiene que ir por la ruta y en su dirección)
+  let bi = -1, bd = 1e9, bt = 0;
+  for (let i = Math.max(0, R.idx - 3); i < Math.min(pts.length - 1, R.idx + 4); i++) { const [d, t] = segDist(v.x, v.z, pts[i], pts[i + 1]); if (d < bd) { bd = d; bi = i; bt = t; } }
+  if (bi < 0 || bd > 45) return;
+  const sa = pts[bi], sb = pts[bi + 1], segYaw = Math.atan2(sb[0] - sa[0], sb[1] - sa[1]);
+  if (Math.cos(segYaw - v.yaw) < .5) return;
+  // avanzar por la ruta la distancia acumulada
+  let left = v.skipAcc, i = bi, x = sa[0] + (sb[0] - sa[0]) * bt, z = sa[1] + (sb[1] - sa[1]) * bt;
+  while (i < pts.length - 1) {
+    const b = pts[i + 1], L = Math.hypot(b[0] - x, b[1] - z);
+    if (L >= left) { x += (b[0] - x) * left / L; z += (b[1] - z) * left / L; left = 0; break; }
+    left -= L; x = b[0]; z = b[1]; i++;
+  }
+  if (left > 0 || i >= pts.length - 1) { v.skipAcc = 0; return; }
+  const nb = pts[i + 1], g = groundAt(x, z);
+  if (blocked(x, z) || (g.y < .2 && !g.road)) return;
+  if (vehHit(v, x, z, Math.atan2(nb[0] - x, nb[1] - z), dynSolids(x, z, v))) return;
+  v.x = x; v.z = z; v.y = g.y; v.yaw = Math.atan2(nb[0] - x, nb[1] - z); v.skipAcc = 0; R.idx = i;
+  syncVeh(v); camFollow.ok = false; camPos.set(1e9, 0, 0); // la cámara se coloca de una vez detrás
+  if (passenger) PAX.pos.set(v.x, v.y, v.z);
+  if (!skipFx) { skipFx = document.createElement('div'); skipFx.style.cssText = 'position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:40;transition:opacity .45s ease'; document.body.appendChild(skipFx); }
+  skipFx.style.transition = 'none'; skipFx.style.opacity = '.85'; void skipFx.offsetWidth; skipFx.style.transition = 'opacity .45s ease'; skipFx.style.opacity = '0';
+  if (performance.now() - skipMsg > 60000) { skipMsg = performance.now(); toast('⏩ Avanzando por la carretera…', '#9fd8ff', true); }
+}
 const levelMissions = id => MISSIONS.filter(m => m.nivel === id && CHAR[m.who]);
 const levelProgress = id => { const L = levelMissions(id); return { total: L.length, done: L.filter(m => save.done[m.who] > 0).length, stars: L.reduce((a, m) => a + (save.done[m.who] || 0), 0) }; };
 // provincias desde donde puede salir cada personaje, según el largo de viaje de su nivel
@@ -657,11 +696,14 @@ function drive(dt) {
   // moto y bici: el giro entra suave (no dobla de golpe)
   v.steerIn = two ? lerp(v.steerIn || 0, I.fx, Math.min(1, dt * 4)) : I.fx;
   const steer = -v.steerIn * K.turn * clamp(Math.abs(v.speed) / 6, 0, 1) * (1 - clamp(Math.abs(v.speed) / (K.max * 1.6), 0, .5));
-  v.yaw += steer * Math.sign(v.speed || 1) * dt * Math.sqrt(warpFor(v)); // con ritmo de viaje gira un poco más para tomar las curvas
+  v.yaw += steer * Math.sign(v.speed || 1) * dt * Math.sqrt(K.water ? warpFor(v) : Math.min(warpFor(v), WARP_TIERRA)); // con ritmo de viaje gira un poco más para tomar las curvas
   v.roll = lerp(v.roll, two ? clamp(-steer * .22 * clamp(Math.abs(v.speed) / 10, 0, 1), -.3, .3) : K.water ? -steer * .12 : 0, dt * 5);
   // en un viaje con pasajero el camino rinde más (ritmo de viaje): mismos km en pantalla, menos minutos;
   // se mueve en pasitos cortos para que los choques sigan funcionando
-  const W = warpFor(v), n = Math.max(1, Math.min(24, Math.ceil(W * Math.abs(v.speed) * dt / 1.0))), sdt = dt * W / n, fdt = dt / n;
+  // Con el pasajero montado ya NO corre «como loco»: en tierra se mueve a la misma velocidad que cuando va solo
+  // (como mucho un poquito más rápido). El resto del ritmo de viaje se cubre con «saltos de carretera» (ver roadSkip).
+  const Wfull = warpFor(v), W = K.water ? Wfull : Math.min(Wfull, WARP_TIERRA), n = Math.max(1, Math.min(24, Math.ceil(W * Math.abs(v.speed) * dt / 1.0))), sdt = dt * W / n, fdt = dt / n;
+  if (!K.water && Wfull > W && v.speed > 3) { v.skipRate = (Wfull - W) * v.speed; v.skipAcc = (v.skipAcc || 0) + v.skipRate * dt; }
   for (let si = 0, stop = false; si < n && !stop; si++) {
     let nx = v.x + Math.sin(v.yaw) * v.speed * sdt, nz = v.z + Math.cos(v.yaw) * v.speed * sdt;
     // choques: no se pasa por encima de edificios, árboles, postes ni otros vehículos
@@ -692,6 +734,7 @@ function drive(dt) {
       }
     }
   }
+  if (!K.water) roadSkip(v);
   if (K.engine && Math.abs(v.speed) > .5) useFuel(v, Math.abs(v.speed) * dt);
   if (K.engine) sound.engine(v.kind, .6 + Math.abs(v.speed) / K.max * .4, Math.abs(v.speed) / K.max);
   if (K.animal && Math.abs(v.speed) > 2) { v.hoofT = (v.hoofT || 0) - dt * Math.abs(v.speed); if (v.hoofT <= 0) { v.hoofT = 3.2; sound.hoof(); } }
@@ -1422,7 +1465,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) { per
   state = 'menu'; $('loading').classList.add('done'); document.body.classList.add('ready');
   $('btnPlay').querySelector('span').textContent = save.mission ? '▶ CONTINUAR VIAJE' : save.deliveries ? '▶ CONTINUAR' : '▶ JUGAR';
 })();
-window.__game = { setState: s => state = s, step: dt => step(dt), arriveNow: () => arrive(), pickUpNow: () => pickUp(), P, VEH, get M() { return M; }, scene, camera, renderer, get state() { return state; }, keys, enterGame, startMission, missionOffers, play, heightAt, groundAt, save, setTake: () => takePressed = true, TOWNS, world: () => world, chunks: () => chunks, applyTime, enter, openMissions };
+window.__game = { get R() { return R; }, routeNow, setState: s => state = s, step: dt => step(dt), arriveNow: () => arrive(), pickUpNow: () => pickUp(), P, VEH, get M() { return M; }, scene, camera, renderer, get state() { return state; }, keys, enterGame, startMission, missionOffers, play, heightAt, groundAt, save, setTake: () => takePressed = true, TOWNS, world: () => world, chunks: () => chunks, applyTime, enter, openMissions };
 
 /* ---------- Contador de visitantes ---------- */
 (function () {
